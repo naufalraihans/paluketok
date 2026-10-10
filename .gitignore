@@ -1,0 +1,30 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+server/.env
+web/.env
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+dist/
+build/
+.output/
+.svelte-kit/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs & temp
+*.log
+tmp/
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+*.swp

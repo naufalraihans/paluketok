@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaluKetok | Planning Sistem untuk Developer</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --ink-900: #141b2b;
+    --ink-700: #3a4253;
+    --ink-500: #6b7385;
+    --line: #e2e6ee;
+    --paper: #ffffff;
+    --soft: #f5f7fb;
+    --accent: #5b8cf2;
+    --accent-dark: #4574d6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink-900);
+    background: var(--paper);
+    line-height: 1.6;
+  }
+  a { color: inherit; text-decoration: none; transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 56px; }
+
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+  .brand img { width: 26px; height: 26px; }
+  nav ul { display: flex; gap: 28px; list-style: none; font-size: 15px; font-weight: 500; }
+  nav a:hover { color: var(--accent); }
+  nav a[aria-current="page"] { color: var(--accent); font-weight: 600; }
+  .lang { font-size: 14px; font-weight: 500; color: var(--ink-700); }
+  .lang:hover { color: var(--accent); }
+
+  .hero { padding: 120px 0 112px; background: linear-gradient(180deg, #f3f6fc 0%, var(--paper) 100%); border-bottom: 1px solid var(--line); }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent); }
+  .hero h1 { margin-top: 20px; max-width: 880px; font-size: clamp(40px, 6vw, 72px); font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
+  .hero p { margin-top: 24px; max-width: 620px; font-size: 18px; color: var(--ink-700); }
+  .btns { margin-top: 44px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; height: 46px; padding: 0 26px; border-radius: 999px; border: 1px solid var(--ink-900); font-size: 15px; font-weight: 600; }
+  .btn:hover { background: var(--ink-900); color: var(--paper); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+  .btn.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+
+  .intro { padding: 96px 0; }
+  .intro .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+  .intro h2 { font-size: 36px; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
+  .intro p { font-size: 17px; color: var(--ink-700); }
+  .rule { width: 36px; height: 3px; background: var(--accent); margin-top: 20px; }
+
+  .services { padding: 0 0 96px; }
+  .section-head { margin-bottom: 40px; }
+  .section-head h2 { font-size: 32px; font-weight: 700; letter-spacing: -0.01em; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 28px 24px; display: flex; flex-direction: column; gap: 12px; }
+  .card:hover { border-color: var(--accent); }
+  .card h3 { font-size: 18px; font-weight: 700; }
+  .card p { font-size: 15px; color: var(--ink-700); flex: 1; }
+  .card .more { font-size: 14px; font-weight: 600; color: var(--accent); }
+  .card .more:hover { color: var(--accent-dark); }
+
+  .stats { background: var(--ink-900); color: var(--paper); padding: 72px 0; }
+  .stats .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
+  .stat strong { display: block; font-size: 44px; font-weight: 800; line-height: 1; }
+  .stat span { display: block; margin-top: 10px; font-size: 15px; color: #c9d3de; }
+
+  .steps { padding: 96px 0; }
+  .steps ol { list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 80px 1fr; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--line); }
+  .steps li::before { content: counter(s, decimal-leading-zero); font-size: 15px; font-weight: 700; color: var(--accent); }
+  .steps h3 { font-size: 19px; font-weight: 700; }
+  .steps p { margin-top: 6px; font-size: 15px; color: var(--ink-700); }
+
+  .cta { background: var(--soft); border-top: 1px solid var(--line); padding: 88px 0; }
+  .cta h2 { font-size: 36px; font-weight: 700; letter-spacing: -0.01em; max-width: 720px; }
+  .cta p { margin-top: 16px; font-size: 17px; color: var(--ink-700); max-width: 620px; }
+
+  footer { border-top: 1px solid var(--line); padding: 56px 0 32px; font-size: 14px; color: var(--ink-700); }
+  footer .cols { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; }
+  footer h4 { font-size: 14px; font-weight: 700; color: var(--ink-900); margin-bottom: 12px; }
+  footer ul { list-style: none; display: grid; gap: 8px; }
+  footer a:hover { color: var(--accent); }
+  .legal { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-500); }
+
+  @media (max-width: 900px) {
+    .wrap { padding: 0 24px; }
+    nav { display: none; }
+    .intro .grid, .stats .row, footer .cols { grid-template-columns: 1fr 1fr; }
+    .cards { grid-template-columns: 1fr 1fr; }
+    .hero { padding: 80px 0; }
+  }
+  @media (max-width: 560px) {
+    .cards, .stats .row, footer .cols, .intro .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><img src="favicon.svg" alt="">PaluKetok</a>
+    <nav>
+      <ul>
+        <li><a href="#" aria-current="page">Beranda</a></li>
+        <li><a href="#layanan">Fitur</a></li>
+        <li><a href="#alur">Cara Kerja</a></li>
+        <li><a href="#">Harga</a></li>
+        <li><a href="#">Dokumentasi</a></li>
+      </ul>
+    </nav>
+    <button class="lang">ID</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Platform planning untuk developer</p>
+    <h1>Dari brief ke planning siap coding, dalam hitungan menit</h1>
+    <p>PRD, ERD, kontrak API, role access, dan struktur folder. Satu brief, satu paket planning yang bisa langsung dipakai tim.</p>
+    <div class="btns">
+      <a class="btn primary" href="#">Mulai Planning</a>
+      <a class="btn" href="#alur">Lihat Cara Kerja</a>
+    </div>
+  </div>
+</section>
+
+<section class="intro">
+  <div class="wrap grid">
+    <div>
+      <h2>Planning dulu, coding kemudian</h2>
+      <div class="rule"></div>
+    </div>
+    <p>PaluKetok memecah brief menjadi dokumen yang saling terhubung. Setiap keputusan teknis yang ragu diuji lewat gate JEV, sehingga hasilnya tidak bergantung pada tebakan. Dokumen dibuat berurutan dan bisa diedit sebelum satu baris kode ditulis.</p>
+  </div>
+</section>
+
+<section class="services" id="layanan">
+  <div class="wrap">
+    <div class="section-head"><h2>Yang dihasilkan</h2></div>
+    <div class="cards">
+      <article class="card"><h3>PRD</h3><p>Masalah, scope, dan acceptance criteria dalam satu dokumen.</p><a class="more" href="#">Lihat contoh</a></article>
+      <article class="card"><h3>ERD</h3><p>Tabel, kolom, relasi, dan index. Siap diimpor ke DBDiagram.</p><a class="more" href="#">Lihat contoh</a></article>
+      <article class="card"><h3>Kontrak API</h3><p>Endpoint, schema request dan response, serta kode error dalam OpenAPI.</p><a class="more" href="#">Lihat contoh</a></article>
+      <article class="card"><h3>Role Access</h3><p>Matriks izin per endpoint dengan tiga lapis proteksi.</p><a class="more" href="#">Lihat contoh</a></article>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap row">
+    <div class="stat"><strong>6</strong><span>Tahap pipeline planning</span></div>
+    <div class="stat"><strong>8</strong><span>Tabel inti database</span></div>
+    <div class="stat"><strong>15</strong><span>Endpoint API v1</span></div>
+    <div class="stat"><strong>1.00</strong><span>Confidence keputusan arsitektur</span></div>
+  </div>
+</section>
+
+<section class="steps" id="alur">
+  <div class="wrap">
+    <div class="section-head"><h2>Cara kerja</h2></div>
+    <ol>
+      <li><div><h3>Isi brief</h3><p>Nama project, deskripsi, stack, dan fitur yang diminta.</p></div></li>
+      <li><div><h3>Generate tahap demi tahap</h3><p>PRD, ERD, OpenAPI, role, keamanan, dan struktur folder dibuat berurutan.</p></div></li>
+      <li><div><h3>Uji keputusan ragu lewat JEV</h3><p>Keputusan di bawah ambang kepercayaan dikumpulkan faktanya dulu, bukan ditebak.</p></div></li>
+      <li><div><h3>Unduh dan pakai</h3><p>Dokumen siap dipakai untuk coding, review, atau presentasi ke dosen dan tim.</p></div></li>
+    </ol>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="wrap">
+    <h2>Mulai dari satu brief</h2>
+    <p>Satu run memotong satu kredit. Gagal tidak dipotong.</p>
+    <div class="btns"><a class="btn primary" href="#">Mulai Planning</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div><strong>PaluKetok</strong><p style="margin-top:8px;max-width:340px">Platform planning sistem untuk developer. Stack: Svelte, Go, Supabase, Midtrans.</p></div>
+      <div><h4>Produk</h4><ul><li><a href="#layanan">Fitur</a></li><li><a href="#alur">Cara Kerja</a></li><li><a href="#">Harga</a></li></ul></div>
+      <div><h4>Sumber</h4><ul><li><a href="#">Dokumentasi</a></li><li><a href="#">Contoh PRD</a></li></ul></div>
+      <div><h4>Kontak</h4><ul><li><a href="#">Email</a></li></ul></div>
+    </div>
+    <p class="legal">© PaluKetok. Konten contoh untuk pengembangan.</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,171 @@
+// ERD PaluKetok (DBML, paste ke dbdiagram.io)
+// PostgreSQL via Supabase. auth.users bawaan Supabase. RLS ON di semua tabel app.
+
+Table auth.users {
+  id uuid [pk, note: 'Supabase Auth']
+}
+
+Table profiles {
+  id uuid [pk, note: 'sama dengan auth.users.id']
+  username text [unique]
+  full_name text
+  avatar_url text
+  plan_tier text [not null, default: 'free', note: 'free | pro']
+  is_admin boolean [not null, default: false]
+  credits int [not null, default: 0, note: 'saldo run. cache dari sum(credits_ledger.delta). CHECK >= 0']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    is_admin [name: 'idx_profiles_admin', note: 'partial: where is_admin = true']
+  }
+}
+
+Table projects {
+  id uuid [pk]
+  owner_id uuid [not null]
+  name text [not null]
+  brief text [not null, note: 'input mentah developer']
+  stack jsonb [note: '{fe, be, db, payment}']
+  status text [not null, default: 'draft', note: 'draft | ready | archived']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (owner_id, created_at) [name: 'idx_projects_owner_created']
+  }
+}
+
+Table plan_runs {
+  id uuid [pk]
+  project_id uuid [not null]
+  user_id uuid [not null, note: 'denormalisasi dari projects.owner_id agar RLS tanpa join']
+  status text [not null, default: 'queued', note: 'queued | running | done | failed']
+  current_stage text [note: 'prd | erd | openapi | roles | security | structure']
+  progress int [not null, default: 0, note: 'jumlah tahap selesai']
+  total int [not null, default: 6]
+  escalations int [not null, default: 0, note: 'jumlah gate ESCALATE']
+  credits_charged int [not null, default: 1]
+  model text
+  tokens_in int [not null, default: 0]
+  tokens_out int [not null, default: 0]
+  cost numeric [not null, default: 0]
+  error text
+  started_at timestamptz
+  finished_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (project_id) [unique, where: "status = 'running'", name: 'uq_plan_runs_one_running', note: 'satu run running per project']
+    (user_id, created_at) [name: 'idx_plan_runs_user_created']
+  }
+}
+
+Table artifacts {
+  id uuid [pk]
+  run_id uuid [not null]
+  user_id uuid [not null, note: 'denormalisasi untuk RLS']
+  kind text [not null, note: 'prd | erd | openapi | roles | security | structure']
+  content text [not null, note: 'markdown untuk prd/roles/security/structure; DBML untuk erd; JSON untuk openapi']
+  version int [not null, default: 1]
+  status text [not null, default: 'draft', note: 'draft | final | stale. stale = tahap hulu di-regenerate']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (run_id, kind) [unique, name: 'uq_artifacts_run_kind', note: 'satu artefak per tahap per run']
+    (user_id, created_at) [name: 'idx_artifacts_user_created']
+  }
+}
+
+Table artifact_versions {
+  id uuid [pk]
+  artifact_id uuid [not null]
+  version int [not null]
+  content text [not null]
+  created_by_run_id uuid [note: 'run yang menghasilkan versi ini; null jika versi awal dari run asal']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (artifact_id, version) [unique, name: 'uq_artifact_versions']
+  }
+}
+
+Table decisions {
+  id uuid [pk]
+  run_id uuid [not null]
+  user_id uuid [not null, note: 'denormalisasi untuk RLS']
+  stage text [not null, note: 'kind tahap tempat keputusan diambil']
+  question text [not null]
+  state jsonb [note: 'fakta terverifikasi, ringkas']
+  criteria jsonb [note: 'opsi + alasan']
+  gate text [not null, note: 'EXECUTE | GATHER_EVIDENCE | ESCALATE']
+  round int [not null, default: 1, note: 'putaran GATHER_EVIDENCE, maks 4']
+  choice text
+  confidence numeric [note: '0..1']
+  probabilities jsonb
+  jev_decision_id text [note: 'id dari respons JEV (decision_...)']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (run_id, stage) [name: 'idx_decisions_run_stage']
+    (user_id, created_at) [name: 'idx_decisions_user_created']
+  }
+}
+
+Table orders {
+  id uuid [pk]
+  user_id uuid [not null]
+  package_id text [not null, note: 'kunci paket di konfigurasi server, mis. starter']
+  midtrans_order_id text [unique, not null, note: 'format PK-<random>']
+  amount_idr int [not null, note: 'diambil dari tabel paket server, bukan klien']
+  credits_granted int [not null]
+  status text [not null, default: 'pending', note: 'pending | settlement | expire | deny']
+  snap_token text
+  paid_at timestamptz
+  expired_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'idx_orders_user_created']
+    status [name: 'idx_orders_status']
+  }
+}
+
+Table credits_ledger {
+  id uuid [pk]
+  user_id uuid [not null]
+  delta int [not null, note: '+ topup/refund/grant, - run/regenerate']
+  reason text [not null, note: 'topup | run | refund | regenerate | grant']
+  ref_type text [not null, default: 'none', note: 'polymorphic: order | plan_run | artifact | none']
+  ref_id uuid [note: 'polymorphic: isi sesuai ref_type. null jika ref_type = none']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, created_at) [name: 'idx_ledger_user_created']
+    (ref_type, ref_id) [name: 'idx_ledger_ref']
+    (ref_id, reason) [unique, where: "reason = 'refund'", name: 'uq_ledger_one_refund_per_run', note: 'refund hanya sekali per run']
+  }
+}
+
+// Relasi
+Ref: profiles.id - auth.users.id [delete: cascade]
+Ref: projects.owner_id > profiles.id [delete: cascade]
+Ref: plan_runs.project_id > projects.id [delete: cascade]
+Ref: plan_runs.user_id > profiles.id [delete: cascade]
+Ref: artifacts.run_id > plan_runs.id [delete: cascade]
+Ref: artifacts.user_id > profiles.id [delete: cascade]
+Ref: artifact_versions.artifact_id > artifacts.id [delete: cascade]
+Ref: artifact_versions.created_by_run_id > plan_runs.id [delete: set null]
+Ref: decisions.run_id > plan_runs.id [delete: cascade]
+Ref: decisions.user_id > profiles.id [delete: cascade]
+Ref: orders.user_id > profiles.id [delete: restrict]
+Ref: credits_ledger.user_id > profiles.id [delete: restrict]
+
+// Catatan polymorphic (tanpa FK di DB):
+// credits_ledger.(ref_type, ref_id) -> orders.id | plan_runs.id | artifacts.id
+// Integritas dijaga aplikasi + trigger validasi per ref_type (opsional).
+
+// Catatan kredit:
+// profiles.credits = sum(credits_ledger.delta) untuk user_id. Rekonsiliasi lewat query.
+
