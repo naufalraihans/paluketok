@@ -1,7 +1,7 @@
 How To Use Jev AI : 
 
 Base URL : https://api.experientiallabs.ai/v1/systemone
-API Key : <JEV_API_KEY> (simpan di server/.env, jangan di-commit)
+API Key : <JEV_API_KEY> (lokasi dan aturan rahasia: `security.md` bagian 9)
 
 Request : 
 ```

@@ -23,6 +23,7 @@ Tidak ada role `editor`/`viewer`. Satu project = satu owner. Sharing besok.
 | orders | - | create/read milik sendiri | read semua |
 | kredit user lain | - | - | update (manual grant) |
 | tier user lain | - | - | update |
+| webhook DOKU | - | - | - (tanpa JWT, dilindungi signature HMAC-SHA256, `security.md` 6) |
 
 ## Enforcement (3 lapis)
 
@@ -30,10 +31,10 @@ Tidak ada role `editor`/`viewer`. Satu project = satu owner. Sharing besok.
 2. **App** - handler cek `owner_id == claims.sub`. Gagal = 403.
 3. **RLS** - Postgres policy `owner_id = auth.uid()`. Lapisan jaring, bukan satu-satunya.
 
-Admin ditandai di `profiles.plan_tier` atau kolom `is_admin` (pilih saat migrasi; default `is_admin boolean default false`).
+Admin ditandai di kolom `profiles.is_admin` (default `false`). `plan_tier` tidak menandai admin.
 
 ## Aturan
 
 - Role dari JWT claim, bukan dari request body.
 - Tidak ada endpoint yang menerima `owner_id` dari klien.
-- Setiap deny 403 dicatat (nanti, saat ada logging).
+- Setiap deny 403 dicatat ke log server (`security.md` bagian 3).

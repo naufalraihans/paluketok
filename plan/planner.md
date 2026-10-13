@@ -9,6 +9,7 @@ POST /v1/projects/{id}/runs
   -> potong kredit (transaksi) -> plan_runs.status = queued
   -> worker ambil run -> status = running
   -> untuk tiap tahap [prd, erd, openapi, roles, security, structure]:
+       a0. update plan_runs.current_stage = kind      # di AWAL tahap, bukan setelah
        a. bangun prompt dari brief + artefak tahap sebelumnya
        b. panggil LLM -> draf
        c. validasi format
@@ -46,15 +47,16 @@ Setiap panggilan LLM memakai struktur tetap:
 
 Aturan:
 
-- Charter dari `docs/agents/` dipakai sebagai peran:
+- Charter dari `docs/agents/` dipakai sebagai peran. Isi charter menyebut path template (`docs/spec`, `docs/arch`, `/server`, `/web`). Saat dipakai sebagai prompt planner, path itu hanya label peran dan tidak mengikat; yang mengikat `planner.md`, `openapi.md`, dan `erd.dbml`:
   - `prd` -> `analyst.md`
   - `erd` -> `data.md` dan `architect.md`
   - `openapi` -> `backend.md`
   - `roles` dan `security` -> `security.md`
   - `structure` -> `architect.md`
-- Isi `<brief>` dan `<artifact>` adalah data. Prompt menyatakan ini secara eksplisit.
+- Isi `<brief>` dan `<artifact>` adalah data. Prompt menyatakan ini secara eksplisit. Aturan prompt injection: `security.md` bagian 5.
+- Batas ukuran: prompt satu tahap maks `ai_settings.max_input_tokens`. Jika brief + artefak sebelumnya melebihi, run `failed` dengan error `input_too_large`, kredit di-refund. Tidak ada pemotongan diam-diam.
 - Output hanya berisi artefak. Tanpa preamble, tanpa pagar kode di luar format.
-- Suhu rendah (0.2) untuk konsistensi. Batas token output per tahap ditetapkan saat implementasi.
+- Suhu rendah (0.2) untuk konsistensi. Batas token input dan output per tahap dari `ai_settings` (bagian 9).
 
 ## 4. Gate JEV
 
@@ -79,7 +81,7 @@ Catatan:
 - `GATHER_EVIDENCE` menambah fakta, bukan mengulang prompt yang sama. Jika tidak ada fakta baru yang bisa ditambahkan, langsung `ESCALATE`.
 - Setiap panggilan JEV dicatat ke `decisions`: `question`, `state`, `criteria`, `gate`, `choice`, `confidence`, `probabilities`.
 - Request JEV memakai `model: "jev-latest"`, `state` ringkas (diff/evidence, bukan repository penuh), dan pertanyaan independen.
-- Batas gateway: maks 32 question per request, 64 opsi per choice, 2-10 level per score. Batas token input sekitar 32.000 untuk `state` dan semua definisi pertanyaan.
+- Batas gateway JEV: lihat `jev_ai.md`.
 - Timeout 30 detik. Tanpa auto-retry. Jika timeout, titik itu dianggap `ESCALATE` dan run lanjut.
 - `probabilities` dan `confidence` bukan jaminan benar. Keputusan tidak pernah dijalankan otomatis.
 
@@ -103,7 +105,7 @@ Catatan: retry validasi ini adalah retry LLM, berbeda dengan retry JEV. Retry JE
 `plan_runs`:
 
 - `status`: `queued -> running -> done | failed`
-- `current_stage`: nama `kind` yang sedang berjalan
+- `current_stage`: nama `kind` yang SEDANG berjalan. Ditulis saat tahap dimulai dan tidak dikosongkan. Saat `status = failed`, nilainya tahap tempat run gagal. Alasan kegagalan ada di kolom `error`
 - `progress`: jumlah tahap selesai
 - `total`: 6
 - `escalations`: jumlah gate `ESCALATE`
@@ -115,10 +117,13 @@ Klien polling `GET /v1/runs/{id}` setiap beberapa detik sampai `done` atau `fail
 `POST /v1/artifacts/{id}/regenerate`:
 
 - Membuat versi baru di `artifact_versions` dan memperbarui `artifacts.content` serta `artifacts.version`.
-- Hanya tahap itu yang dijalankan ulang. Artefak tahap sesudahnya tidak otomatis berubah, dan ditandai `stale` di UI (kolom status tambahan di `artifacts` nanti jika dibutuhkan).
-- Biaya: 1 kredit. Keputusan awal, bisa diubah. Dicatat di `credits_ledger` dengan `ref_type = 'artifact'`.
+- Hanya untuk run `done`, dan hanya jika tidak ada run `running` pada project yang sama (mencegah artefak run lama ditulis ulang saat dibaca run baru). Run induk `queued`, `running`, atau `failed`, atau project punya run `running`, ditolak `422 validation_error`.
+- Hanya tahap itu yang dijalankan ulang. Artefak tahap sesudahnya tidak otomatis berubah; `artifacts.status` tahap hilir di-set `stale` (status `draft | final | stale` ada di `erd.dbml`; aturan penuh di `erd.md` bagian "Aturan status artefak").
+- Biaya: 1 kredit. Keputusan awal, bisa diubah. Charge dicatat di `credits_ledger` (`reason = 'regenerate'`, `ref_type = 'artifact'`). Refund kalau gagal (`reason = 'refund'`, `ref_type = 'ledger'`, `ref_id` = id baris charge). Urutan transaksi: `auth_billing.md` 3.4.
 
 ## 8. Konkurensi
+
+- Angka awal (bisa diubah di config): pool 4 worker, antrean 20 run, timeout per tahap 180 detik. Timeout JEV: bagian 4.
 
 - Worker pool dengan ukuran tetap. Satu run dikerjakan satu worker dari awal sampai akhir (tahap berurutan, karena tiap tahap memakai hasil sebelumnya).
 - Dua run dari project yang sama boleh berjalan bersamaan, tapi dibatasi satu run `running` per project. Run kedua tetap `queued`.
@@ -128,6 +133,7 @@ Klien polling `GET /v1/runs/{id}` setiap beberapa detik sampai `done` atau `fail
 
 | Topik | Status |
 |---|---|
-| Model LLM mana yang dipakai | belum dipilih, perlu keputusan |
-| Batas token output per tahap | ditetapkan saat implementasi |
-| Kebijakan stale setelah regenerate | ditunda |
+| Model, base URL, key LLM | diatur admin lewat halaman admin (`admin.paluketok.web.id`), `PUT /v1/admin/settings/ai/planner`. Admin bertindak sebagai pengendali 9router. |
+| Siapa bayar token LLM | key admin (keputusan). Harga kredit wajib menutup biaya token. |
+| Batas token input dan output per tahap | diatur admin di `ai_settings` (kolom `max_input_tokens`, `max_output_tokens`). Default awal diisi admin saat setup. |
+| Kebijakan penghapusan artefak `stale` | ditunda. Status `stale` sudah disiapkan di `artifacts.status`; regenerasi tidak menghapus artefak hilir |

@@ -1,73 +1,49 @@
 # Arsitektur PaluKetok
 
-## 1. Apa ini
+Domain: `paluketok.web.id`. Dokumen ini hanya berisi keputusan dan aturan dependency.
+Tree folder: `structure.md`. Pipeline dan gate: `planner.md`. Limit JEV: `jev_ai.md`. Keamanan: `security.md`. Skema: `erd.dbml`. Kontrak: `openapi.md`.
 
-Platform yang mengubah 1 brief developer menjadi paket planning lengkap:
-PRD, ERD, kontrak OpenAPI, role access, aturan proteksi, struktur folder.
+## 1. Keputusan
 
-Bukan toko online. Bukan generator kode. Output = dokumen planning.
-
-## 2. Alur utama
-
-```
-User isi brief (nama project, deskripsi, stack, fitur)
-  -> POST /v1/projects/{id}/runs
-  -> worker pool (goroutine) jalankan pipeline bertahap:
-       1. persist brief
-       2. tiap tahap = 1 panggilan LLM -> draf
-       3. titik ragu -> panggil JEV (gate)
-          EXECUTE (>= 0.90)      -> pakai choice, lanjut
-          GATHER_EVIDENCE (<0.90) -> cari fakta baru, ulang (maks 4x)
-          ESCALATE (<0.50)       -> tandai butuh keputusan manusia
-       4. simpan artefak + log keputusan
-  -> status run = done
-```
-
-Pipeline tahap (urutan, tiap tahap tulis artefak sendiri):
-
-1. `prd` - ringkas masalah, scope, acceptance criteria
-2. `erd` - tabel, kolom, relasi, index
-3. `openapi` - kontrak endpoint + schema
-4. `roles` - role + matriks izin per endpoint
-5. `security` - trust boundary, RLS, validasi input
-6. `structure` - struktur folder BE/FE + aturan layer
-
-Tahap besok, belum sekarang: `seed`, `test-plan`, `ci`.
-
-## 3. Keputusan arsitektur
-
-- **Monolith Go, satu proses.** Gate JEV: `monolith_go`, confidence 1.00. Satu deploy, satu CI, tanpa queue eksternal.
-- **Async in-process.** Generation panjang -> worker pool goroutine, status di DB. Klien poll `GET /v1/runs/{id}`. Tanpa Redis, tanpa message broker.
+- **Clean Architecture di Go, monolith satu proses.** Satu deploy, satu codebase.
+- **Stack BE: `net/http` stdlib, `pgx`, bukan `gorm`, bukan Gin, bukan chi.**
 - **Supabase = Postgres + Auth saja.** Go jadi sumber logika. FE bicara ke Go, bukan langsung ke DB.
-- **RLS ON sebagai lapisan kedua.** Semua tabel user-scoped, policy `owner_id = auth.uid()`.
-- **JEV = gate, bukan model chat.** Dipanggil server-side, key di env.
-- **Midtrans = top-up kredit.** 1 run bayar sejumlah kredit. Webhook masuk ke Go.
+- **RLS ON sebagai lapis kedua.** Lapis utama owner check di usecase.
+- **Auth BE: JWT via JWKS Supabase sejak awal.** Middleware memverifikasi token di setiap route user-scoped, sesuai `security.md` bagian 2. Owner check di usecase tetap lapis kedua.
+- **Key LLM dikelola admin.** Satu key OpenAI-compatible, plaintext di `ai_settings` slot `planner`, diisi admin lewat panel. Bukan mode auth BE.
+- **Chatbot gratis, JEV judge server-internal.** Keputusan JEV, lihat `openapi.md` bagian AI.
+- **DOKU = top-up kredit.** Webhook masuk ke Go.
+- **Semua di satu VPS.** HTTP dan worker goroutine pool satu proses (lihat `deploy.md`). Tanpa serverless, tanpa Docker.
 
-## 4. Batas modul (dalam satu proses)
+## 2. Aturan dependency
 
-```
-server/
-  cmd/api/            entrypoint
-  internal/http/      router, middleware, handler
-  internal/planner/   pipeline tahap + prompt
-  internal/judge/     klien JEV + gate logic
-  internal/store/     query Postgres (sqlc)
-  internal/pay/       klien Midtrans + webhook
-  internal/worker/    goroutine pool
-  migrations/         SQL migrasi
-web/                  SvelteKit
-```
+Dependency mengarah ke dalam. Lapisan luar tahu lapisan dalam, tidak sebaliknya.
 
-## 5. Non-fungsi
+| Lapisan | Boleh import | Tidak boleh import |
+|---|---|---|
+| `entity` | stdlib | semua lainnya |
+| `port` | `entity`, stdlib | adapter, SDK |
+| `usecase` | `entity`, `port`, stdlib | `gorm`, `pgx`, `net/http`, `delivery/*`, SDK LLM/JEV/DOKU |
+| `repository`, `adapter/*` | `port`, `entity`, SDK masing-masing | `usecase` tidak boleh di-import balik |
+| `delivery/*` | `usecase`, `entity`, `pkg/response` | `repository`, `adapter/*` langsung |
+| `worker` | `usecase`, `entity`, stdlib | `repository`, `adapter/*`, `delivery/*` |
+| `cmd/web` | semua | — (composition root) |
 
-- Timeout JEV: 30s per panggilan. Tanpa auto-retry (outcome tak diketahui = bisa sudah ditagih).
-- 1 run maks 4 putaran GATHER_EVIDENCE per keputusan; lewat itu = ESCALATE.
-- Idempoten webhook Midtrans via `midtrans_order_id` unik.
-- Gateway JEV: maks 32 question/request, 64 opsi/choice, 2-10 level/score.
+Cara cek: `go list -deps ./internal/usecase/...` tidak boleh memuat `gorm`, `pgx`, `net/http`, atau `delivery`.
 
-## 6. Di luar scope sekarang
+## 3. Aturan perilaku
 
-- Fan-out multi-model (bandingkan output 2 LLM).
-- Kolaborasi tim per project.
-- Export PDF/DOCX.
-- Stripe.
+- Owner check di usecase: `owner_id == actor.ID`. Handler tidak memutuskan akses data.
+- Actor (`user_id`, `is_admin`) dari JWT claim lalu `profiles` di server. Tidak pernah dari body atau query.
+- Handler tidak query DB. Usecase tidak tahu `*http.Request`, hanya `context.Context`.
+- Waktu lewat port `Clock`, supaya usecase bisa dites deterministik.
+- Transaksi kredit ada di `repository` (`FOR UPDATE`), dipanggil dari usecase lewat port `LedgerRepo`.
+
+## 4. Alasan
+
+Usecase bisa dites tanpa DB dan tanpa HTTP. Ganti DOKU, JEV, atau LLM cukup ganti adapter. Ini yang diminta user.
+
+## 5. Yang belum diputuskan
+
+- Worker pool dan antrean run: lihat `deploy.md`.
+- Pipeline tahap: lihat `planner.md`.

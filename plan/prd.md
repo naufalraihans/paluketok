@@ -11,7 +11,7 @@ Sistem ini BUKAN aplikasi toko online. PaluKetok hanya nama project contoh untuk
 
 User minta: website toko online sederhana dengan fitur lengkap.
 
-Stack contoh: Go, Svelte, PSQL + Supabase, Midtrans, Supabase Auth, UI minimalis.
+Stack contoh: Go, Svelte, PSQL + Supabase, DOKU, Supabase Auth, UI minimalis.
 
 Dari input itu, sistem harus menghasilkan aspek planning developer:
 
@@ -26,15 +26,9 @@ Dari input itu, sistem harus menghasilkan aspek planning developer:
 - Struktur file/folder
 - Tech stack
 
-## 3. Stack Final (sistem ini)
+## 3. Stack
 
-- FE: Svelte + TypeScript
-- BE: Go
-- DB + Auth: PostgreSQL via Supabase (Supabase Auth)
-- Payment: Midtrans
-- API contract: OpenAPI
-- ERD: DBDiagram
-- Judge keputusan teknis: JEV AI (lihat jev_ai.md)
+Ringkas di `main.md`. Keputusan teknis di `architecture.md`. Deploy di `deploy.md`.
 
 ## 4. Aturan Kerja
 
@@ -44,6 +38,6 @@ Dari input itu, sistem harus menghasilkan aspek planning developer:
 
 ## 5. Di Luar Scope (sekarang)
 
-- Stripe (diganti Midtrans).
+- Stripe (diganti Midtrans, lalu diganti DOKU).
 - Eksekusi kode proyek contoh.
 - Changelog otomatis.

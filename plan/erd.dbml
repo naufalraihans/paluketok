@@ -13,6 +13,7 @@ Table profiles {
   plan_tier text [not null, default: 'free', note: 'free | pro']
   is_admin boolean [not null, default: false]
   credits int [not null, default: 0, note: 'saldo run. cache dari sum(credits_ledger.delta). CHECK >= 0']
+  token_version int [not null, default: 0, note: 'pencabutan sesi hidup: dibanding claim token_version (security.md 3). Naikkan untuk memaksa semua sesi user re-login']
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
@@ -24,7 +25,7 @@ Table projects {
   id uuid [pk]
   owner_id uuid [not null]
   name text [not null]
-  brief text [not null, note: 'input mentah developer']
+  brief text [not null, note: 'input mentah developer, 1-8000 karakter (CHECK di migrasi)']
   stack jsonb [note: '{fe, be, db, payment}']
   status text [not null, default: 'draft', note: 'draft | ready | archived']
   created_at timestamptz [not null, default: `now()`]
@@ -82,7 +83,7 @@ Table artifact_versions {
   artifact_id uuid [not null]
   version int [not null]
   content text [not null]
-  created_by_run_id uuid [note: 'run yang menghasilkan versi ini; null jika versi awal dari run asal']
+  created_by_run_id uuid [note: 'run yang PERTAMA membuat artefak ini (run asal). Tetap sama untuk semua versi hasil regenerate. null hanya untuk artefak tanpa run (tidak ada saat ini)']
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
@@ -116,13 +117,14 @@ Table orders {
   id uuid [pk]
   user_id uuid [not null]
   package_id text [not null, note: 'kunci paket di konfigurasi server, mis. starter']
-  midtrans_order_id text [unique, not null, note: 'format PK-<random>']
+  invoice_number text [unique, not null, note: 'format PK-<random>, maks 30 karakter']
   amount_idr int [not null, note: 'diambil dari tabel paket server, bukan klien']
   credits_granted int [not null]
-  status text [not null, default: 'pending', note: 'pending | settlement | expire | deny']
-  snap_token text
+  status text [not null, default: 'pending', note: 'pending | settlement | expire']
+  request_id text [unique, not null, note: 'idempotency key DOKU, 409 bila diulang']
+  payment_url text [note: 'halaman bayar DOKU, tampil sekali']
+  expired_date timestamptz [note: 'dari response DOKU, sumber tunggal kedaluwarsa']
   paid_at timestamptz
-  expired_at timestamptz
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
@@ -137,19 +139,40 @@ Table credits_ledger {
   user_id uuid [not null]
   delta int [not null, note: '+ topup/refund/grant, - run/regenerate']
   reason text [not null, note: 'topup | run | refund | regenerate | grant']
-  ref_type text [not null, default: 'none', note: 'polymorphic: order | plan_run | artifact | none']
+  ref_type text [not null, default: 'none', note: 'polymorphic: order | plan_run | artifact | ledger | none']
   ref_id uuid [note: 'polymorphic: isi sesuai ref_type. null jika ref_type = none']
+  actor_id uuid [note: 'pelaku: user untuk run/topup, admin untuk grant. FK profiles']
+  idempotency_key text [note: 'kunci idempotensi untuk grant admin; null untuk baris lain']
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
     (user_id, created_at) [name: 'idx_ledger_user_created']
     (ref_type, ref_id) [name: 'idx_ledger_ref']
-    (ref_id, reason) [unique, where: "reason = 'refund'", name: 'uq_ledger_one_refund_per_run', note: 'refund hanya sekali per run']
+    (ref_id) [unique, where: "reason = 'refund' and ref_type = 'plan_run' and ref_id is not null", name: 'uq_ledger_one_refund_per_run', note: 'refund hanya sekali per plan_run']
+    (ref_id) [unique, where: "reason = 'topup' and ref_type = 'order' and ref_id is not null", name: 'uq_ledger_one_topup_per_order', note: 'satu grant per order, jaring terakhir anti double grant']
+    (ref_id) [unique, where: "reason = 'refund' and ref_type = 'ledger' and ref_id is not null", name: 'uq_ledger_one_refund_per_charge', note: 'satu refund per baris charge regenerate']
+    (idempotency_key) [unique, where: "reason = 'grant' and idempotency_key is not null", name: 'uq_ledger_one_grant_per_key', note: 'grant admin idempoten']
   }
+}
+
+Table ai_settings {
+  id uuid [pk]
+  slot text [not null, unique, note: 'nama slot, mis. planner']
+  provider text [not null, note: 'label, mis. 9router']
+  base_url text [not null, note: 'endpoint OpenAI-compatible']
+  model text [not null]
+  api_key text [not null, note: 'PLAINTEXT (keputusan). Hanya service role. GET API kirim masked.']
+  max_input_tokens int [not null, note: 'diatur admin, batas token input per tahap']
+  max_output_tokens int [not null, note: 'diatur admin, batas token output per tahap']
+  is_active boolean [not null, default: true]
+  updated_by uuid [note: 'admin terakhir yang ubah']
+  updated_at timestamptz [not null, default: `now()`]
 }
 
 // Relasi
 Ref: profiles.id - auth.users.id [delete: cascade]
+Ref: ai_settings.updated_by > profiles.id [delete: set null]
+Ref: credits_ledger.actor_id > profiles.id [delete: set null]
 Ref: projects.owner_id > profiles.id [delete: cascade]
 Ref: plan_runs.project_id > projects.id [delete: cascade]
 Ref: plan_runs.user_id > profiles.id [delete: cascade]
@@ -163,7 +186,7 @@ Ref: orders.user_id > profiles.id [delete: restrict]
 Ref: credits_ledger.user_id > profiles.id [delete: restrict]
 
 // Catatan polymorphic (tanpa FK di DB):
-// credits_ledger.(ref_type, ref_id) -> orders.id | plan_runs.id | artifacts.id
+// credits_ledger.(ref_type, ref_id) -> orders.id | plan_runs.id | artifacts.id | credits_ledger.id (ref_type='ledger')
 // Integritas dijaga aplikasi + trigger validasi per ref_type (opsional).
 
 // Catatan kredit:

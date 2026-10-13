@@ -1,43 +1,22 @@
 # ERD PaluKetok
 
-Sumber kebenaran skema: `plan/erd.dbml`. Paste isinya ke https://dbdiagram.io (New Diagram > Import > DBML).
-Dokumen ini menjelaskan relasi, aturan, dan alasan desain. Jika ada konflik, `erd.dbml` yang berlaku.
+Sumber kebenaran skema: `plan/erd.dbml`. Jika ada konflik, `erd.dbml` yang berlaku. Dokumen ini hanya mencatat aturan yang tidak bisa diekspresikan di DBML.
 
 PostgreSQL via Supabase. `auth.users` dikelola Supabase. RLS ON di semua tabel app.
 
-## 1. Daftar tabel
+## Aturan kredit
 
-| Tabel | Fungsi | Pemilik data |
-|---|---|---|
-| `profiles` | profil, tier, admin, saldo kredit | `auth.users` 1:1 |
-| `projects` | project milik user (brief mentah + stack) | user |
-| `plan_runs` | satu kali generate planning | project |
-| `artifacts` | satu dokumen per tahap per run | run |
-| `artifact_versions` | riwayat versi artefak saat regenerate | artefak |
-| `decisions` | jejak keputusan JEV per tahap | run |
-| `orders` | order top-up Midtrans | user |
-| `credits_ledger` | catatan mutasi kredit (sumber saldo) | user |
+- Sumber saldo: `credits_ledger`. `profiles.credits` = cache, harus sama dengan `sum(credits_ledger.delta)`.
+- Pemotongan dalam satu transaksi dengan `SELECT ... FOR UPDATE` pada baris `profiles`. Detail: `auth_billing.md` bagian 3.
+- Refund hanya sekali per run (`uq_ledger_one_refund_per_run`).
+- Refund regenerate hanya sekali per baris charge regenerate, dikunci `uq_ledger_one_refund_per_charge` pada baris charge itu sendiri (`ref_type = 'ledger'`, `ref_id` = id baris charge).
+- Grant topup hanya sekali per order, dikunci `uq_ledger_one_topup_per_order` (`reason = 'topup'`, `ref_type = 'order'`, `ref_id` = `orders.id`). Ini jaring terakhir di database, bukan pengganti lock di `security.md` bagian 6.
+- Ketiga index penjaga uang di atas memuat predikat `ref_id is not null`. Tanpa itu, baris dengan `ref_id = NULL` dianggap distinct oleh Postgres dan bisa masuk berkali-kali — jaringnya bocor.
+- Setiap baris ledger mencatat `actor_id` (pelaku: user atau admin). Grant admin wajib membawa `idempotency_key`, dikunci `uq_ledger_one_grant_per_key`, supaya double-submit tidak menaikkan saldo dua kali.
+- `credits_ledger` bersifat append-only: tidak ada `UPDATE` atau `DELETE` pada barisnya. `profiles.credits` di-set dari `RETURNING` hasil `INSERT` ledger, bukan dihitung ulang di aplikasi.
+- Refund memakai nilai `credits_charged` dari baris asal, bukan angka tetap `1`.
 
-## 2. Relasi
-
-```
-auth.users 1 ── 1 profiles
-profiles   1 ── * projects          (owner_id)
-projects   1 ── * plan_runs         (project_id, cascade)
-plan_runs  1 ── * artifacts         (run_id, cascade)
-plan_runs  1 ── * decisions         (run_id, cascade)
-artifacts  1 ── * artifact_versions (artifact_id, cascade)
-profiles   1 ── * orders            (user_id, restrict)
-profiles   1 ── * credits_ledger    (user_id, restrict)
-
-credits_ledger.(ref_type, ref_id) ──> orders | plan_runs | artifacts   (polymorphic, tanpa FK)
-```
-
-`profiles`, `orders`, dan `credits_ledger` memakai `restrict` agar histori uang tidak ikut hilang saat user dihapus. Penghapusan user ditangani lewat proses terpisah yang sengaja.
-
-## 3. Polymorphic: `credits_ledger`
-
-Satu tabel mencatat semua mutasi kredit. Target tergantung `ref_type`:
+## Aturan `ledger` (polymorphic, tanpa FK)
 
 | `reason` | `delta` | `ref_type` | `ref_id` menunjuk ke |
 |---|---|---|---|
@@ -45,97 +24,55 @@ Satu tabel mencatat semua mutasi kredit. Target tergantung `ref_type`:
 | `run` | - | `plan_run` | `plan_runs.id` |
 | `refund` | + | `plan_run` | `plan_runs.id` |
 | `regenerate` | - | `artifact` | `artifacts.id` |
-| `grant` | + atau - | `none` | null |
+| `refund` (regenerate gagal) | + | `ledger` | id baris charge `regenerate` |
+| `grant` | + atau - | `none` | null (`actor_id` = admin pelaku, `idempotency_key` wajib) |
 
-Kenapa tanpa FK: Postgres tidak mendukung FK polymorphic. Integritas dijaga aplikasi. Jika nanti perlu lebih ketat, tambahkan trigger validasi per `ref_type`.
+Integritas `ref_type` dijaga aplikasi. `ref_type = 'ledger'` hanya dipakai untuk refund regenerate dan hanya menunjuk baris `credits_ledger` dengan `reason = 'regenerate'`.
 
-Aturan:
+## Aturan status
 
-- `refund` hanya sekali per run. Dijaga lewat unique partial index `(ref_id, reason) WHERE reason = 'refund'`.
-- `ref_id` wajib ada jika `ref_type <> 'none'`. Dijaga aplikasi (dan bisa ditambah `CHECK`).
+- `projects.brief`: 1-8.000 karakter, ditegakkan `CHECK` di migrasi.
+- `projects.status`: `draft | ready | archived` (`erd.dbml`). Project baru = `draft`. `archived` menolak `POST /runs` dengan `422`. `DELETE` = set `archived`, bukan hapus baris.
 
-## 4. Denormalisasi untuk RLS
+- `plan_runs`: maks satu `running` per project. Penegak utama: usecase di `POST /runs` menolak dengan `409` jika project punya run `running`. Jaring kedua: unique partial index `uq_plan_runs_one_running`. `progress` 0-6, `total` 6.
+- `artifacts`: satu per tahap per run. `stale` dipasang pada tahap hilir saat tahap hulu di-regenerate (kebijakan penuh ditunda, status `stale` sudah disiapkan).
+- `decisions`: pada regenerate, `round` melanjutkan penomoran untuk `(run_id, stage)` yang sama, bukan mulai dari 1 lagi. Nomor tertinggi sebelumnya `+1`.
+- `orders`: `pending` ke `settlement` atau `expire`. Dari `settlement` tidak boleh kembali. Kedaluwarsa memakai `expired_date` dari respons DOKU, bukan timer sendiri. `amount_idr` dan `credits_granted` dari tabel paket server, bukan klien.
+- Lock webhook: `SELECT` order `FOR UPDATE` dalam transaksi yang sama dengan grant. Order `settlement` langsung `200` tanpa grant.
+- Transisi order hanya lewat `UPDATE orders SET status = $new WHERE id = $1 AND status = 'pending'`. Rows affected = 0 berarti tidak ada perubahan dan tidak ada grant.
+- Late settlement: order `expire` yang kemudian dibayar boleh pindah ke `settlement` HANYA jika status API DOKU mengonfirmasi `SUCCESS`. Grant tetap dijaga `uq_ledger_one_topup_per_order`.
+- Webhook hanya diproses untuk `invoice_number` yang ada di `orders`. Tidak dikenal = `404`, tanpa perubahan data.
 
-`plan_runs`, `artifacts`, dan `decisions` menyimpan `user_id` walau bisa dicari lewat join. Alasannya:
+## Aturan status artefak
 
-- Policy RLS `user_id = auth.uid()` langsung tanpa join. Lebih murah dan lebih mudah diaudit.
-- Query daftar per user (`/v1/runs`, `/v1/decisions`) tidak perlu join ke `projects`.
+- `draft`: dibuat saat tahap selesai dalam run yang masih `running`.
+- `final`: otomatis saat run `done`.
+- `stale`: tahap hulu di-regenerate (lihat `planner.md` bagian 7).
 
-Konsistensi: `user_id` di `plan_runs` harus sama dengan `projects.owner_id` saat run dibuat. Nilainya tidak boleh diubah setelah insert.
-
-## 5. Kredit
-
-- Sumber kebenaran saldo: `credits_ledger`.
-- `profiles.credits` adalah cache untuk baca cepat. Harus sama dengan `sum(credits_ledger.delta)` untuk user tersebut.
-- `CHECK (credits >= 0)` pada `profiles`.
-- Pemotongan kredit dilakukan dalam satu transaksi dengan `SELECT ... FOR UPDATE` pada baris `profiles`. Detail di `plan/auth_billing.md` bagian 3.
-
-## 6. Status
-
-| Tabel | Kolom | Nilai |
-|---|---|---|
-| `projects` | `status` | `draft`, `ready`, `archived` |
-| `plan_runs` | `status` | `queued`, `running`, `done`, `failed` |
-| `artifacts` | `status` | `draft`, `final`, `stale` |
-| `orders` | `status` | `pending`, `settlement`, `expire`, `deny` |
-| `decisions` | `gate` | `EXECUTE`, `GATHER_EVIDENCE`, `ESCALATE` |
-
-Aturan `plan_runs`:
-
-- Maksimal satu run `running` per project. Dijaga dengan unique partial index `(project_id) WHERE status = 'running'`.
-- `current_stage` berisi kind tahap yang sedang berjalan.
-- `progress` (0-6) dan `total` (6) dipakai klien untuk polling `GET /v1/runs/{id}`.
-
-Aturan `artifacts`:
-
-- Satu artefak per tahap per run: unique `(run_id, kind)`.
-- `stale` dipasang pada artefak hilir saat tahap hulu di-regenerate.
-
-Aturan `orders`:
-
-- Transisi hanya `pending` ke `settlement`, `expire`, atau `deny`. Dari `settlement` tidak boleh kembali.
-- `amount_idr` dan `credits_granted` diambil dari tabel paket di server, bukan dari klien.
-
-## 7. Versi artefak
+## Aturan versi artefak
 
 - `artifacts.version` dan `artifacts.content` selalu versi terbaru.
-- Setiap regenerate menulis versi lama ke `artifact_versions` sebelum menimpa.
-- `artifact_versions.version` unik per `artifact_id`.
-- `created_by_run_id` mencatat run penyebab versi itu. Nullable agar aman jika run dihapus (`set null`).
+- Regenerate menulis versi lama ke `artifact_versions` sebelum menimpa.
 
-## 8. Index
+## Denormalisasi untuk RLS
 
-| Tabel | Index | Untuk |
-|---|---|---|
-| `profiles` | `is_admin` partial | daftar admin |
-| `projects` | `(owner_id, created_at)` | `GET /v1/projects` |
-| `plan_runs` | `(project_id, status)` | cek run aktif |
-| `plan_runs` | `(user_id, created_at)` | daftar run user |
-| `plan_runs` | unique `(project_id) WHERE status = 'running'` | satu run aktif per project |
-| `artifacts` | unique `(run_id, kind)` | ambil artefak per tahap |
-| `artifacts` | `(user_id, created_at)` | daftar artefak user |
-| `artifact_versions` | unique `(artifact_id, version)` | riwayat versi |
-| `decisions` | `(run_id, stage)` | `GET /v1/decisions?run_id=` |
-| `decisions` | `(user_id, created_at)` | jejak keputusan user |
-| `orders` | `midtrans_order_id` unique | idempotensi webhook |
-| `orders` | `(user_id, created_at)`, `status` | daftar order, pembersihan expire |
-| `credits_ledger` | `(user_id, created_at)` | riwayat kredit |
-| `credits_ledger` | `(ref_type, ref_id)` | telusur mutasi per objek |
-| `credits_ledger` | unique `(ref_id, reason) WHERE reason = 'refund'` | refund sekali |
+`plan_runs`, `artifacts`, `decisions` menyimpan `user_id` agar policy `user_id = auth.uid()` tanpa join. Nilainya sama dengan `projects.owner_id` saat run dibuat dan tidak boleh diubah.
 
-## 9. Keputusan desain
+`artifact_versions` tidak punya `user_id`. Policy-nya lewat join: `artifact_id IN (SELECT id FROM artifacts WHERE user_id = auth.uid())`.
+
+## Keputusan desain
 
 | Keputusan | Alasan |
 |---|---|
-| UUID sebagai PK | Aman diekspos ke klien, tidak bisa ditebak urutannya |
-| `jsonb` untuk `stack`, `state`, `criteria`, `probabilities` | Bentuknya berubah seiring fitur; tidak perlu tabel tambahan |
-| `numeric` untuk `cost` dan `confidence` | Presisi desimal, tidak ada pembulatan float |
-| Tidak ada tabel `stages` terpisah | Enam tahap tetap dan dikenal kode; cukup `kind` di `artifacts` |
-| `decisions` terpisah dari `artifacts` | Satu tahap bisa punya banyak keputusan (beberapa putaran GATHER_EVIDENCE) |
+| UUID sebagai PK | Aman diekspos, tidak bisa ditebak |
+| `jsonb` untuk `stack`, `state`, `criteria`, `probabilities` | Bentuk berubah seiring fitur |
+| `numeric` untuk `cost` dan `confidence` | Presisi desimal |
+| Tanpa tabel `stages` | Enam tahap tetap, cukup `kind` |
+| `decisions` terpisah dari `artifacts` | Satu tahap bisa banyak putaran GATHER_EVIDENCE |
+| `ai_settings.api_key` plaintext | Keputusan user. Akses hanya service role, GET API hanya masked |
 
-## 10. Di luar skema sekarang
+## Ditunda
 
-- Tabel audit terpisah (ditunda, lihat `plan/security.md` bagian 12).
-- Sharing project antar user (ditunda, lihat `plan/roles.md`).
-- Tabel seed (ditunda).
-- Tabel paket harga. Sementara paket disimpan di konfigurasi server.
+- Tabel audit terpisah (`security.md` bagian 12).
+- Sharing project antar user (`roles.md`).
+- Tabel seed dan tabel paket harga (paket sementara di konfigurasi server).
