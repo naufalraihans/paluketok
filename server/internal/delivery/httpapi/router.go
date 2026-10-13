@@ -1,0 +1,91 @@
+// Route Fase 5: net/http stdlib ServeMux (plan/structure.md "Router").
+// Semua endpoint openapi.md bagian user terdaftar. Endpoint admin F7.
+package httpapi
+
+import (
+	"log/slog"
+	"net/http"
+	"os"
+
+	"paluketok/server/internal/delivery/middleware"
+	"paluketok/server/internal/entity"
+)
+
+// requestLogger logger dasar server (JSON di prod, teks di dev).
+var requestLogger = func() *slog.Logger {
+	env := os.Getenv("APP_ENV")
+	if env == "production" {
+		return slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	}
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}()
+
+// RouterOptions adalah dependensi router.
+type RouterOptions struct {
+	Handlers    *Handlers
+	Verifier    *middleware.Verifier // nil di test webhook murni
+	AllowOrigin []string             // CORS origin; kosong = dev (buka)
+	// ActorFix dipakai TEST saja: pengganti JWT untuk httptest (actor tetap).
+	ActorFix entity.Actor
+}
+
+// NewRouter merangkai mux + middleware berurutan (plan/workflow.md 19):
+// Recover -> RequestID -> CORS -> BodyLimit -> (JWT per route) -> handler.
+func NewRouter(o RouterOptions) http.Handler {
+	mux := http.NewServeMux()
+
+	// health tanpa auth (workflow.md 7).
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+
+	// Webhook DOKU: TANPA JWT, dilindungi signature (security.md bagian 6).
+	mux.HandleFunc("POST /v1/webhooks/doku", o.Handlers.WebhookDOKU)
+
+	// Grup JWT: semua endpoint user-scoped.
+	authed := http.NewServeMux()
+	authed.HandleFunc("GET /v1/me", o.Handlers.Me)
+	authed.HandleFunc("GET /v1/projects", o.Handlers.ListProjects)
+	authed.HandleFunc("POST /v1/projects", o.Handlers.CreateProject)
+	authed.HandleFunc("GET /v1/projects/{id}", o.Handlers.GetProject)
+	authed.HandleFunc("PATCH /v1/projects/{id}", o.Handlers.UpdateProject)
+	authed.HandleFunc("DELETE /v1/projects/{id}", o.Handlers.ArchiveProject)
+	authed.HandleFunc("POST /v1/projects/{id}/runs", o.Handlers.CreateRun)
+	authed.HandleFunc("GET /v1/runs/{id}", o.Handlers.GetRun)
+	authed.HandleFunc("GET /v1/runs/{id}/artifacts", o.Handlers.ListRunArtifacts)
+	authed.HandleFunc("GET /v1/artifacts/{id}", o.Handlers.GetArtifact)
+	authed.HandleFunc("POST /v1/artifacts/{id}/regenerate", o.Handlers.RegenerateArtifact)
+	authed.HandleFunc("GET /v1/decisions", o.Handlers.ListDecisions)
+	authed.HandleFunc("POST /v1/orders", o.Handlers.CreateOrder)
+	authed.HandleFunc("GET /v1/orders/{id}", o.Handlers.GetOrder)
+
+	// Grup admin: is_admin dari profiles, 403 selain itu (openapi.md bagian admin).
+	admin := http.NewServeMux()
+	admin.HandleFunc("GET /v1/admin/projects", o.Handlers.AdminListProjects)
+	admin.HandleFunc("GET /v1/admin/runs", o.Handlers.AdminListRuns)
+	admin.HandleFunc("PATCH /v1/admin/users/{id}", o.Handlers.AdminPatchUser)
+	admin.HandleFunc("POST /v1/admin/users/{id}/credits", o.Handlers.AdminGrantCredits)
+	admin.HandleFunc("GET /v1/admin/decisions", o.Handlers.AdminListDecisions)
+	admin.HandleFunc("GET /v1/admin/settings/ai", o.Handlers.AdminListAISettings)
+	admin.HandleFunc("PUT /v1/admin/settings/ai/{slot}", o.Handlers.AdminSetAISetting)
+
+	if o.Verifier != nil {
+		mux.Handle("/v1/admin/", middleware.JWT(o.Verifier)(middleware.Admin(admin)))
+		mux.Handle("/v1/", middleware.JWT(o.Verifier)(authed))
+	} else if o.ActorFix.UserID != "" {
+		// Hanya test: actor tetap menggantikan JWT.
+		mux.Handle("/v1/admin/", middleware.WithActorFix(o.ActorFix)(middleware.Admin(admin)))
+		mux.Handle("/v1/", middleware.WithActorFix(o.ActorFix)(authed))
+	} else {
+		// Test tanpa JWT (webhook murni): actor kosong.
+		mux.Handle("/v1/", authed)
+	}
+
+	h := middleware.Recover(requestLogger)(mux)
+	h = middleware.RequestID(requestLogger)(h)
+	h = middleware.CORS(o.AllowOrigin)(h)
+	h = middleware.BodyLimit(1 << 20)(h) // 1 MB default; webhook 16 KB di handler
+	return h
+}

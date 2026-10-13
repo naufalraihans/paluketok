@@ -1,0 +1,48 @@
+# PaluKetok - systemd unit (plan/deploy.md, plan/workflow.md langkah 27)
+#
+# Pasang:
+#   sudo useradd --system --home /opt/paluketok --shell /usr/sbin/nologin paluketok
+#   sudo mkdir -p /opt/paluketok /etc/paluketok
+#   sudo chown -R paluketok:paluketok /opt/paluketok
+#   sudo install -m 0640 -o root -g paluketok paluketok.env /etc/paluketok/.env
+#   sudo cp paluketok.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now paluketok
+#
+# User khusus bukan root (plan/security.md): paluketok tanpa hak istimewa,
+# hanya boleh baca /etc/paluketok/.env (grup paluketok).
+
+[Unit]
+Description=PaluKetok API + worker planner
+Documentation=https://paluketok.web.id
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=paluketok
+Group=paluketok
+WorkingDirectory=/opt/paluketok
+EnvironmentFile=/etc/paluketok/.env
+ExecStart=/opt/paluketok/paluketok
+Restart=always
+RestartSec=3
+
+# Pengerasan dasar (plan/security.md bagian 12).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/paluketok
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+
+# Log ke journal (journalctl -u paluketok -f).
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
