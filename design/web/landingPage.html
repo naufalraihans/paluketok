@@ -1,0 +1,851 @@
+<!DOCTYPE html><html class="scroll-smooth" lang="id"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>PaluKetok — Rancang dulu. Bangun dengan benang merah.</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+            },
+            canvas: '#FAFAFB',
+          },
+          boxShadow: {
+            'app': '0 20px 50px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06)',
+            'subtle': '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Typography & Micro-adjustments -->
+<style data-purpose="custom-layout">
+    body {
+      background-color: #ffffff;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .grid-pattern {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(226, 232, 240, 0.6) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(226, 232, 240, 0.6) 1px, transparent 1px);
+    }
+    .card-node-connector {
+      position: relative;
+    }
+    .card-node-connector::after {
+      content: '';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      width: 2px;
+      height: 12px;
+      background-color: #cbd5e1;
+    }
+  </style>
+</head>
+<body class="font-sans antialiased text-slate-800 bg-white">
+<!-- BEGIN: SiteNavigation -->
+<header class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 transition-all">
+<div class="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+<!-- Logo Container -->
+<a class="flex items-center gap-2.5 font-bold text-slate-900 tracking-tight text-lg" href="#">
+<div class="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-sm">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"></path>
+<path d="M17.64 15 22 10.64"></path>
+<path d="m20.91 3.26-6 6"></path>
+<path d="m14.9 9.3 2.1 2.1"></path>
+</svg>
+</div>
+<span class="">PaluKetok</span>
+</a>
+<!-- Center Navigation Links -->
+<nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+<a class="hover:text-slate-900 transition-colors" href="#produk">Produk</a>
+<a class="hover:text-slate-900 transition-colors" href="#cara-kerja">Cara kerja</a>
+<a class="hover:text-slate-900 transition-colors" href="#untuk-siapa">Untuk siapa</a>
+</nav>
+<!-- Right Action CTAs -->
+<div class="flex items-center gap-5">
+<a class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors" href="#masuk">Masuk</a>
+<a class="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-slate-950 text-white hover:bg-slate-800 transition-all shadow-sm" href="#mulai">
+          Mulai merancang
+        </a>
+</div>
+</div>
+</header>
+<!-- END: SiteNavigation -->
+<main>
+<!-- BEGIN: HeroSection -->
+<section class="pt-20 pb-24 text-center px-6 relative overflow-hidden bg-gradient-to-b from-white via-slate-50/40 to-white">
+<div class="max-w-4xl mx-auto">
+<!-- Main Hero Title -->
+<h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-950 leading-[1.15] mb-6">
+          Rancang dulu.<br>
+          Bangun dengan <span class="relative inline-block text-brand-600 bg-brand-50 px-3.5 py-0.5 rounded-full border border-brand-100">·benang merah·</span>
+</h1>
+<!-- Subheading Description -->
+<p class="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed mb-10">
+          Satukan kebutuhan, struktur halaman, prototipe, data, dan proteksi. Supaya setiap keputusan punya alasan—sebelum menjadi kode.
+        </p>
+<!-- Call to Action Buttons -->
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+<a class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-medium text-sm text-white bg-brand-500 hover:bg-brand-600 transition-all shadow-sm" href="#mulai">
+<span class="">Mulai rancanganmu</span>
+<span class="text-brand-200">→</span>
+</a>
+<a class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-medium text-sm text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-subtle" href="#contoh">
+<span class="">Jelajahi contoh proyek</span>
+<span class="text-slate-400">↗</span>
+</a>
+</div>
+</div>
+<!-- Hero Interactive Application Window Mockup -->
+<div class="max-w-5xl mx-auto text-left" data-purpose="hero-app-window">
+<div class="bg-white rounded-2xl border border-slate-200/90 shadow-app overflow-hidden">
+<!-- Window Header / Browser Bar -->
+<div class="bg-slate-50/80 px-4 py-3 border-b border-slate-200 flex items-center justify-between text-xs text-slate-500">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
+<span class="ml-4 font-mono text-slate-400 text-[11px] bg-slate-100/80 px-2.5 py-0.5 rounded border border-slate-200/60">paluketok.id / ruang-ramu</span>
+</div>
+<div class="flex items-center gap-2 font-mono text-[11px] text-slate-400">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-50/60 text-brand-600 border border-blue-100/60">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span> Dalam perencanaan · v0.8
+              </span>
+</div>
+</div>
+<!-- Application Workspace UI -->
+<div class="grid grid-cols-1 md:grid-cols-12 min-h-[460px] bg-canvas">
+<!-- Sidebar Explorer -->
+<div class="md:col-span-3 border-r border-slate-200/80 p-4 bg-white/70">
+<div class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 px-2">Ruang Ramu</div>
+<nav class="space-y-1 text-xs font-medium">
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors" href="#">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Dokumen PRD
+                </a>
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-50 text-brand-600 border border-blue-100/80 font-semibold shadow-xs" href="#">
+<svg class="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Sitemap
+                </a>
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors" href="#">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Prototipe
+                </a>
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors" href="#">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Model Data ERD
+                </a>
+<a class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors" href="#">
+<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+                  Rencana Proteksi
+                </a>
+</nav>
+</div>
+<!-- Visual Canvas Stage -->
+<div class="md:col-span-9 p-6 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between pb-5 border-b border-slate-200/60 mb-6">
+<div>
+<h3 class="font-bold text-slate-900 text-sm">Ruang Ramu - Peta halaman</h3>
+<p class="text-xs text-slate-400 mt-0.5">Visualisasi arsitektur navigasi &amp; hierarki akses</p>
+</div>
+<span class="text-[11px] font-medium text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                    12 halaman · 3 area akses
+                  </span>
+</div>
+<!-- Tree Diagram Visual -->
+<div class="max-w-xl mx-auto flex flex-col items-center">
+<!-- Root Node -->
+<div class="bg-white border-2 border-brand-200 shadow-sm rounded-xl px-5 py-2.5 text-center flex items-center gap-2.5 mb-6">
+<div class="w-2.5 h-2.5 rounded-full bg-brand-500"></div>
+<div>
+<div class="font-bold text-xs text-slate-800">Ruang Ramu</div>
+<div class="text-[10px] text-slate-400 font-mono">ruangramu.id</div>
+</div>
+</div>
+<!-- 3 Access Groups -->
+<div class="w-full grid grid-cols-3 gap-3 relative">
+<!-- Column: Area Publik -->
+<div class="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs">
+<div class="text-[11px] font-bold text-slate-800 mb-0.5">Area publik</div>
+<div class="text-[9px] text-slate-400 font-mono mb-2">Tanpa autentikasi</div>
+<div class="space-y-1.5">
+<div class="p-1.5 rounded bg-blue-50/70 border border-blue-200/80 text-[10px] font-medium text-brand-700">Detail workshop</div>
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Beranda</div>
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Eksplorasi workshop</div>
+</div>
+</div>
+<!-- Column: Area Peserta -->
+<div class="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs">
+<div class="text-[11px] font-bold text-slate-800 mb-0.5">Area peserta</div>
+<div class="text-[9px] text-slate-400 font-mono mb-2">Role: participant</div>
+<div class="space-y-1.5">
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Reservasi</div>
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Pembayaran</div>
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Reservasi saya</div>
+</div>
+</div>
+<!-- Column: Area Admin -->
+<div class="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs">
+<div class="text-[11px] font-bold text-slate-800 mb-0.5">Area admin</div>
+<div class="text-[9px] text-slate-400 font-mono mb-2">Role: admin</div>
+<div class="space-y-1.5">
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Dashboard</div>
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Workshop</div>
+<div class="p-1.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-600">Jadwal &amp; kapasitas</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Tabs Bar inside mockup -->
+<div class="mt-6 pt-3 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-400">
+<span class="font-mono">GARIS IDE KE BLUEPRINT</span>
+<div class="flex items-center gap-4">
+<span class="hover:text-slate-700 cursor-pointer"># Dokumen PRD</span>
+<span class="text-brand-600 font-semibold cursor-pointer"># Sitemap</span>
+<span class="hover:text-slate-700 cursor-pointer"># Rencana prototipe</span>
+<span class="hover:text-slate-700 cursor-pointer"># Model data ERD</span>
+<span class="hover:text-slate-700 cursor-pointer"># Rencana proteksi</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: HeroSection -->
+<!-- BEGIN: ProblemStatementSection -->
+<section class="py-24 px-6 border-t border-slate-100 bg-white" id="cara-kerja">
+<div class="max-w-3xl mx-auto text-center">
+<!-- Section Eyebrow Badge -->
+<span class="inline-block text-[11px] font-bold tracking-widest text-brand-600 uppercase mb-4"></span>
+<!-- Main Statement Heading -->
+<h2 class="text-3xl sm:text-5xl font-extrabold text-slate-950 tracking-tight leading-tight mb-6">
+          Yang sulit bukan memulai.<br>
+          Yang sulit: tetap searah.
+        </h2>
+<!-- Context Description -->
+<p class="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto mb-10">
+          Brief ada di dokumen. Halaman ada di papan desain. Data dibahas di chat. Saat satu hal berubah, konteksnya mudah tertinggal. PaluKetok memberi semuanya satu tempat untuk bertemu.
+        </p>
+<!-- Connecting Dialogue Snippet -->
+<div class="inline-flex flex-wrap items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs text-xs sm:text-sm">
+<span class="text-slate-500 font-medium">“Ini dibuat untuk kebutuhan yang mana?”</span>
+<span class="text-slate-300">→</span>
+<span class="text-brand-600 font-semibold">“Ini alasannya. Ini kaitannya.”</span>
+</div>
+</div>
+</section>
+<!-- END: ProblemStatementSection -->
+<!-- BEGIN: FeatureDeepDiveSection -->
+<section class="py-20 px-6 bg-slate-50/60 border-t border-slate-100" id="produk">
+<div class="max-w-5xl mx-auto">
+<!-- Section Header -->
+<div class="text-center max-w-2xl mx-auto mb-14">
+<h2 class="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight mb-3">
+            Peta sebelum perjalanan.
+          </h2>
+<p class="text-sm sm:text-base text-slate-600 leading-relaxed">
+            Lihat bagaimana Ruang Ramu merencanakan website reservasi workshop: dari area akses sampai alur pesan tempat.
+          </p>
+<div class="mt-2 text-[11px] uppercase tracking-wider font-mono text-slate-400">
+            CONTOH PROYEK ILUSTRATIF · BUKAN DATA PELANGGAN
+          </div>
+</div>
+<!-- Flow Visual Card Structure -->
+<div class="bg-white rounded-2xl border border-slate-200/90 shadow-app overflow-hidden">
+<!-- Mockup Toolbar Header -->
+<div class="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-white">
+<div class="flex items-center gap-3">
+<span class="w-6 h-6 rounded bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center">Rr.</span>
+<span class="font-bold text-xs text-slate-800">Ruang Ramu</span>
+<span class="text-slate-300">/</span>
+<span class="text-xs text-slate-500">Struktur &amp; prototipe</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600">Dalam perencanaan · v0.8</span>
+</div>
+</div>
+<!-- Secondary Sub-Navigation -->
+<div class="px-5 py-2.5 bg-slate-50/60 border-b border-slate-100 flex items-center justify-between text-xs">
+<div class="flex items-center gap-4">
+<button class="font-semibold text-brand-600 border-b-2 border-brand-600 pb-1 -mb-3">Sitemap</button>
+<button class="text-slate-500 hover:text-slate-800 pb-1">Alur pengguna</button>
+<button class="text-slate-500 hover:text-slate-800 pb-1">Prototipe</button>
+</div>
+<span class="text-[11px] text-slate-400 font-mono">12 halaman · 3 area akses</span>
+</div>
+<!-- Interactive Flow Workspace Body -->
+<div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 bg-canvas">
+<!-- Left & Center Flow Diagram -->
+<div class="lg:col-span-8 space-y-6">
+<!-- Tree hierarchy -->
+<div class="flex flex-col items-center">
+<div class="px-4 py-2 rounded-lg bg-white border border-slate-200 shadow-2xs text-xs font-bold text-slate-800 flex items-center gap-2 mb-4">
+<span class="w-2 h-2 rounded-full bg-brand-500"></span>
+                  Ruang Ramu
+                </div>
+<div class="w-full grid grid-cols-3 gap-3">
+<div class="p-3 bg-white rounded-xl border border-slate-200">
+<div class="text-[11px] font-bold text-slate-900">Area publik</div>
+<div class="text-[9px] text-slate-400 font-mono mb-2">Tanpa autentikasi</div>
+<div class="space-y-1 text-[10px]">
+<div class="p-1 bg-slate-50 rounded text-slate-600">Beranda</div>
+<div class="p-1 bg-slate-50 rounded text-slate-600">Eksplorasi workshop</div>
+<div class="p-1 bg-blue-50 text-brand-700 font-semibold rounded border border-blue-200">Detail workshop</div>
+</div>
+</div>
+<div class="p-3 bg-white rounded-xl border border-slate-200">
+<div class="text-[11px] font-bold text-slate-900">Area peserta</div>
+<div class="text-[9px] text-slate-400 font-mono mb-2">Role: participant</div>
+<div class="space-y-1 text-[10px]">
+<div class="p-1 bg-slate-50 rounded text-slate-600">Reservasi</div>
+<div class="p-1 bg-slate-50 rounded text-slate-600">Pembayaran</div>
+<div class="p-1 bg-slate-50 rounded text-slate-600">Reservasi saya</div>
+</div>
+</div>
+<div class="p-3 bg-white rounded-xl border border-slate-200">
+<div class="text-[11px] font-bold text-slate-900">Area admin</div>
+<div class="text-[9px] text-slate-400 font-mono mb-2">Role: admin</div>
+<div class="space-y-1 text-[10px]">
+<div class="p-1 bg-slate-50 rounded text-slate-600">Dashboard</div>
+<div class="p-1 bg-slate-50 rounded text-slate-600">Workshop</div>
+<div class="p-1 bg-slate-50 rounded text-slate-600">Jadwal &amp; kapasitas</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Flow Strip preview -->
+<div class="bg-white rounded-xl border border-slate-200 p-4">
+<div class="text-xs font-bold text-slate-800 mb-3 flex items-center justify-between">
+<span class="">Alur prototipe: pesan tempat</span>
+<span class="text-[10px] text-slate-400 font-normal">Rencana tampilan &amp; state · bukan prototipe aktif</span>
+</div>
+<div class="grid grid-cols-3 gap-3 text-center">
+<div class="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
+<div class="text-[11px] font-bold text-slate-800">Detail workshop</div>
+<div class="text-[9px] text-slate-400 mt-1">Sesi tersedia</div>
+<div class="text-[9px] font-mono text-brand-600 mt-0.5">P-03 → F-04</div>
+</div>
+<div class="p-3 rounded-lg bg-blue-50/60 border border-blue-200">
+<div class="text-[11px] font-bold text-brand-900">Isi reservasi</div>
+<div class="text-[9px] text-brand-600 mt-1">Jadwal dipilih</div>
+<div class="text-[9px] font-mono text-brand-600 mt-0.5">P-04 → F-04</div>
+</div>
+<div class="p-3 rounded-lg bg-slate-50 border border-slate-200/80">
+<div class="text-[11px] font-bold text-slate-800">Konfirmasi</div>
+<div class="text-[9px] text-slate-400 mt-1">Reservasi pending</div>
+<div class="text-[9px] font-mono text-brand-600 mt-0.5">P-05 → F-06</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Detail Drawer -->
+<div class="lg:col-span-4 bg-white rounded-xl border border-slate-200 p-4 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
+<span class="">DETAIL HALAMAN</span>
+<span class="">P-03</span>
+</div>
+<h4 class="font-bold text-slate-900 text-sm mb-1">Detail workshop</h4>
+<div class="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 mb-3">
+                  Siap prototipe
+                </div>
+<p class="text-xs text-slate-600 leading-relaxed mb-4">
+                  Membantu peserta memahami workshop dan memilih sesi yang tersedia.
+                </p>
+<!-- Benang Merah Traceability Card -->
+<div class="p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-2 text-xs">
+<div class="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">BENANG MERAH</div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
+<span class="text-slate-800 text-[11px]"><strong class="font-semibold">F-04:</strong> Reservasi workshop ↗</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span class="text-slate-800 text-[11px]"><strong class="font-semibold">Data:</strong> workshops, sessions</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+<span class="text-slate-800 text-[11px]"><strong class="font-semibold">S-02:</strong> Sanitasi konten publik</span>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-slate-100 text-[11px] text-slate-400">
+                Konteks tersinkronisasi otomatis dengan PRD dan skema basis data.
+              </div>
+</div>
+</div>
+<!-- Bottom Footer Strip -->
+<div class="px-5 py-3 bg-slate-50/80 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+<span class="">Bukan hanya daftar halaman. Setiap halaman membawa tujuan, kebutuhan, dan batas aksesnya.</span>
+<a class="text-brand-600 font-semibold hover:underline inline-flex items-center gap-1" href="#contoh">
+              Jelajahi blueprint Ruang Ramu <span class="">↗</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- END: FeatureDeepDiveSection -->
+<!-- BEGIN: DarkTraceabilitySection -->
+<section class="py-24 px-6 bg-[#0B0F17] text-white relative">
+<div class="max-w-5xl mx-auto">
+<!-- Section Header -->
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 text-white">
+            Satu kebutuhan.<br>Telusuri sampai akarnya.
+          </h2>
+<p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+            Bukan lima file yang kebetulan satu folder. Ini hubungan yang bisa ditelusuri, dari niat produk sampai keputusan teknis.
+          </p>
+</div>
+<!-- 4 Step Traceability Nodes Connected Horizontal -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 relative mb-12">
+<!-- Step 1: Document -->
+<div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+<div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-brand-400 flex items-center justify-center mb-4">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] font-mono text-slate-400 mb-1">PRD / F-04</div>
+<div class="text-xs font-semibold text-slate-300 mb-1">Apa yang perlu dibangun?</div>
+<div class="text-sm font-bold text-white mb-2">Reservasi workshop</div>
+<p class="text-xs text-slate-400 leading-relaxed">
+              Peserta memilih sesi dan jumlah tempat.
+            </p>
+</div>
+<!-- Step 2: Page -->
+<div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+<div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-brand-400 flex items-center justify-center mb-4">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] font-mono text-slate-400 mb-1">HALAMAN / P-04</div>
+<div class="text-xs font-semibold text-slate-300 mb-1">Di mana kebutuhan terjadi?</div>
+<div class="text-sm font-bold text-white mb-2">Form reservasi</div>
+<p class="text-xs text-slate-400 leading-relaxed">
+              Jadwal, kapasitas, dan konfirmasi pesanan.
+            </p>
+</div>
+<!-- Step 3: Data -->
+<div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+<div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-brand-400 flex items-center justify-center mb-4">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] font-mono text-slate-400 mb-1">DATA / E-04</div>
+<div class="text-xs font-semibold text-slate-300 mb-1">Data apa yang dibutuhkan?</div>
+<div class="text-sm font-bold text-white mb-2 font-mono">bookings</div>
+<p class="text-xs text-slate-400 leading-relaxed font-mono text-[11px]">
+              user_id, session_id, quantity, status.
+            </p>
+</div>
+<!-- Step 4: Security -->
+<div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
+<div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-brand-400 flex items-center justify-center mb-4">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div class="text-[11px] font-mono text-slate-400 mb-1">PROTEKSI / S-03</div>
+<div class="text-xs font-semibold text-slate-300 mb-1">Siapa boleh melakukan apa?</div>
+<div class="text-sm font-bold text-white mb-2">Akses berbasis peran</div>
+<p class="text-xs text-slate-400 leading-relaxed">
+              Peserta hanya mengakses reservasi miliknya.
+            </p>
+</div>
+</div>
+<!-- Dynamic Context Shift Callout Bar -->
+<div class="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-900 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 text-sm">
+<div class="space-y-1">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-mono uppercase font-bold text-brand-400">MISALNYA, KEBUTUHAN BERUBAH...</span>
+<span class="text-white font-bold text-sm">“Batasi tempat per sesi.”</span>
+</div>
+<p class="text-slate-400 text-xs sm:text-sm">
+              Tinjau kriteria F-07, state ‘sesi penuh’ pada halaman reservasi, dan aturan quantity pada bookings. Jejak keputusan tetap terlihat saat rancangan berkembang.
+            </p>
+</div>
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-brand-500/10 text-brand-400 border border-brand-500/20 whitespace-nowrap">
+            Konteks ikut bergerak.
+          </span>
+</div>
+</div>
+</section>
+<!-- END: DarkTraceabilitySection -->
+<!-- BEGIN: ProcessStepsSection -->
+<section class="py-24 px-6 bg-white border-b border-slate-100">
+<div class="max-w-5xl mx-auto">
+<!-- Section Header -->
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight mb-3">
+            Dari "bagaimana kalau" ke "ini rencananya".
+          </h2>
+<p class="text-slate-500 text-sm">
+            Empat langkah teratur untuk menyelaraskan ide sampai siap eksekusi.
+          </p>
+</div>
+<!-- 4 Steps Columns -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+<!-- Step 01 -->
+<div class="flex flex-col justify-between">
+<div>
+<div class="font-mono text-3xl font-extrabold italic text-brand-600 mb-3">01</div>
+<h3 class="font-bold text-slate-900 text-base mb-2">Letakkan niatnya.</h3>
+<p class="text-xs text-slate-600 leading-relaxed mb-4">
+                Tentukan masalah, pengguna, tujuan, dan batas MVP. Tidak harus langsung sempurna.
+              </p>
+</div>
+<div class="pt-3 border-t border-slate-100 text-[11px] font-mono text-slate-400">
+              Hasil / <span class="text-slate-700">brief &amp; kebutuhan awal</span>
+</div>
+</div>
+<!-- Step 02 -->
+<div class="flex flex-col justify-between">
+<div>
+<div class="font-mono text-3xl font-extrabold italic text-brand-600 mb-3">02</div>
+<h3 class="font-bold text-slate-900 text-base mb-2">Bentangkan petanya.</h3>
+<p class="text-xs text-slate-600 leading-relaxed mb-4">
+                Turunkan kebutuhan menjadi halaman, alur prototipe, entitas, dan rencana kontrol.
+              </p>
+</div>
+<div class="pt-3 border-t border-slate-100 text-[11px] font-mono text-slate-400">
+              Hasil / <span class="text-slate-700">blueprint lintas modul</span>
+</div>
+</div>
+<!-- Step 03 -->
+<div class="flex flex-col justify-between">
+<div>
+<div class="font-mono text-3xl font-extrabold italic text-brand-600 mb-3">03</div>
+<h3 class="font-bold text-slate-900 text-base mb-2">Sambungkan &amp; tinjau.</h3>
+<p class="text-xs text-slate-600 leading-relaxed mb-4">
+                Telusuri keterkaitan. Bahas asumsi dan tandai keputusan yang masih terbuka.
+              </p>
+</div>
+<div class="pt-3 border-t border-slate-100 text-[11px] font-mono text-slate-400">
+              Hasil / <span class="text-slate-700">rancangan untuk review</span>
+</div>
+</div>
+<!-- Step 04 -->
+<div class="flex flex-col justify-between">
+<div>
+<div class="font-mono text-3xl font-extrabold italic text-brand-600 mb-3">04</div>
+<h3 class="font-bold text-slate-900 text-base mb-2">Bangun dari acuan.</h3>
+<p class="text-xs text-slate-600 leading-relaxed mb-4">
+                Bawa sitemap, ERD, dan PRD ke proses implementasi dengan konteks yang utuh.
+              </p>
+</div>
+<div class="pt-3 border-t border-slate-100 text-[11px] font-mono text-slate-400">
+              Hasil / <span class="text-slate-700">acuan untuk handoff</span>
+</div>
+</div>
+</div>
+<!-- Footer Guidance -->
+<p class="text-center text-xs text-slate-400 mt-14">
+          Alurnya tidak kaku. Kembali, revisi, dan sambungkan lagi saat kamu menemukan hal baru.
+        </p>
+</div>
+</section>
+<!-- END: ProcessStepsSection -->
+<!-- BEGIN: PersonaRolesSection -->
+<section class="py-24 px-6 bg-slate-50/50" id="untuk-siapa">
+<div class="max-w-5xl mx-auto">
+<!-- Section Header -->
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight mb-3">
+            Berbeda peran. Satu bahasa rancangan.
+          </h2>
+<p class="text-slate-600 text-sm sm:text-base">
+            Untuk proyek mandiri maupun diskusi lintas fungsi.
+          </p>
+</div>
+<!-- 3 Persona Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Role 1: Founder -->
+<div class="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col justify-between shadow-subtle hover:border-slate-300 transition-all">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-mono uppercase tracking-wider font-bold text-brand-600">FOUNDER &amp; PRODUCT</span>
+<div class="w-7 h-7 rounded-lg bg-blue-50 text-brand-600 flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+<h3 class="text-base font-bold text-slate-900 mb-2">Tajamkan MVP-mu.</h3>
+<p class="text-xs text-slate-600 leading-relaxed mb-6">
+                Pisahkan kebutuhan inti dari ide nanti. Bawa lingkup yang jelas ke percakapan dengan tim teknis.
+              </p>
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+<div class="text-[10px] font-mono text-slate-400 uppercase font-semibold mb-1">CONTOH SKENARIO</div>
+<div class="text-xs font-bold text-slate-800 mb-1">Platform reservasi workshop</div>
+<p class="text-[11px] text-slate-500 leading-normal">
+                Katalog, sesi, dan reservasi masuk MVP. Program loyalitas menunggu.
+              </p>
+</div>
+</div>
+<!-- Role 2: Designer -->
+<div class="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col justify-between shadow-subtle hover:border-slate-300 transition-all">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-mono uppercase tracking-wider font-bold text-brand-600">DESIGNER &amp; STUDIO</span>
+<div class="w-7 h-7 rounded-lg bg-blue-50 text-brand-600 flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+<h3 class="text-base font-bold text-slate-900 mb-2">Bawa alasan ke desain.</h3>
+<p class="text-xs text-slate-600 leading-relaxed mb-6">
+                Ubah brief menjadi struktur dan rencana layar yang bisa dibahas bersama klien, bukan sekadar tampilan.
+              </p>
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+<div class="text-[10px] font-mono text-slate-400 uppercase font-semibold mb-1">CONTOH SKENARIO</div>
+<div class="text-xs font-bold text-slate-800 mb-1">Website layanan konsultasi</div>
+<p class="text-[11px] text-slate-500 leading-normal">
+                Petakan penemuan layanan + pilih konsultan + jadwalkan sesi.
+              </p>
+</div>
+</div>
+<!-- Role 3: Developer -->
+<div class="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col justify-between shadow-subtle hover:border-slate-300 transition-all">
+<div>
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-mono uppercase tracking-wider font-bold text-brand-600">DEVELOPER &amp; ENGINEERING</span>
+<div class="w-7 h-7 rounded-lg bg-blue-50 text-brand-600 flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+<h3 class="text-base font-bold text-slate-900 mb-2">Bangun dengan konteks.</h3>
+<p class="text-xs text-slate-600 leading-relaxed mb-6">
+                Pahami asal sebuah field, kebutuhan halaman, dan aturan akses sebelum memutuskan implementasinya.
+              </p>
+</div>
+<div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+<div class="text-[10px] font-mono text-slate-400 uppercase font-semibold mb-1">CONTOH SKENARIO</div>
+<div class="text-xs font-bold text-slate-800 mb-1">Portal operasional internal</div>
+<p class="text-[11px] text-slate-500 leading-normal">
+                Hubungan peran staf, data pengajuan, dan alur persetujuan.
+              </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: PersonaRolesSection -->
+<!-- BEGIN: SecurityAndDataSection -->
+<section class="py-24 px-6 bg-white border-t border-slate-100">
+<div class="max-w-5xl mx-auto">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+<!-- Left Text Content -->
+<div class="lg:col-span-5 space-y-6">
+<h2 class="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight leading-tight">
+              Keamanan bukan catatan di akhir.
+            </h2>
+<p class="text-sm text-slate-600 leading-relaxed">
+              Saat merancang data dan halaman, rancang juga batas aksesnya. Jadikan risiko bagian dari keputusan produk, bukan pekerjaan yang terlupakan.
+            </p>
+<!-- Checklist Points -->
+<div class="space-y-4 pt-2">
+<div class="flex items-start gap-3">
+<div class="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-900">Siapa yang boleh mengakses?</div>
+<div class="text-xs text-slate-500">Peran, izin, dan kepemilikan data.</div>
+</div>
+</div>
+<div class="flex items-start gap-3">
+<div class="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-900">Data apa perlu dijaga?</div>
+<div class="text-xs text-slate-500">Field sensitif, validasi, dan retensi.</div>
+</div>
+</div>
+<div class="flex items-start gap-3">
+<div class="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+</div>
+<div>
+<div class="text-xs font-bold text-slate-900">Apa yang belum diputuskan?</div>
+<div class="text-xs text-slate-500">Kontrol terbuka, pemilik, dan tindak lanjut.</div>
+</div>
+</div>
+</div>
+<!-- Disclaimer Notice -->
+<div class="pt-4 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
+              PaluKetok membantu merencanakan kontrol. Bukan audit keamanan, pemindai kerentanan, atau jaminan bahwa implementasi sudah aman.
+            </div>
+</div>
+<!-- Right Technical Schema Visual -->
+<div class="lg:col-span-7">
+<div class="bg-canvas border border-slate-200/90 rounded-2xl p-6 shadow-subtle">
+<div class="flex items-center justify-between pb-4 border-b border-slate-200/60 mb-6 text-xs">
+<span class="font-bold text-slate-800">Data punya batas akses.</span>
+<span class="font-mono text-slate-400 text-[10px]">Ruang Ramu / Ilustrasi</span>
+</div>
+<!-- Mini ERD Diagram with Relationship -->
+<div class="grid grid-cols-2 gap-6 relative mb-6">
+<!-- Users Table -->
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+<div class="bg-slate-50 px-3 py-1.5 border-b border-slate-100 flex justify-between items-center text-[11px] font-mono font-bold text-slate-700">
+<span class="">users</span>
+<span class="text-slate-400 font-normal text-[9px]">E-01</span>
+</div>
+<div class="p-3 text-[11px] font-mono space-y-1 text-slate-600">
+<div class="flex justify-between"><span class="text-brand-600 font-semibold">PK id</span><span class="text-slate-400 text-[10px]">uuid</span></div>
+<div class="flex justify-between"><span class="">email</span><span class="text-amber-600 text-[9px] bg-amber-50 px-1 rounded">sensitif</span></div>
+<div class="flex justify-between"><span class="">role</span><span class="text-slate-400 text-[10px]">text</span></div>
+</div>
+</div>
+<!-- Bookings Table -->
+<div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+<div class="bg-slate-50 px-3 py-1.5 border-b border-slate-100 flex justify-between items-center text-[11px] font-mono font-bold text-slate-700">
+<span class="">bookings</span>
+<span class="text-slate-400 font-normal text-[9px]">E-04</span>
+</div>
+<div class="p-3 text-[11px] font-mono space-y-1 text-slate-600">
+<div class="flex justify-between"><span class="text-brand-600 font-semibold">PK id</span><span class="text-slate-400 text-[10px]">uuid</span></div>
+<div class="flex justify-between"><span class="text-brand-600 font-semibold">FK user_id</span><span class="text-slate-400 text-[10px]">uuid</span></div>
+<div class="flex justify-between"><span class="">quantity</span><span class="text-slate-400 text-[10px]">int</span></div>
+<div class="flex justify-between"><span class="">status</span><span class="text-slate-400 text-[10px]">text</span></div>
+</div>
+</div>
+</div>
+<!-- Policy Control Card -->
+<div class="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200/80 mb-4 space-y-2">
+<div class="flex items-center gap-2 text-xs font-bold text-emerald-950">
+<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="">S-03 · Akses berbasis peran</span>
+</div>
+<div class="text-[11px] space-y-1 pl-6">
+<div class="text-slate-700"><strong class="font-medium text-slate-900">Peserta:</strong> Hanya membaca dan mengelola reservasi miliknya.</div>
+<div class="text-slate-700"><strong class="font-medium text-slate-900">Admin:</strong> Mengelola reservasi sesuai izin operasional.</div>
+</div>
+</div>
+<!-- Decision Pending Card -->
+<div class="p-3 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs">
+<div class="space-y-0.5">
+<div class="font-mono text-[10px] text-slate-400">S-09 · Kebijakan retensi data peserta</div>
+<div class="text-[11px] text-slate-600 font-medium">Batas penyimpanan email &amp; nomor kontak</div>
+</div>
+<span class="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                  Perlu keputusan
+                </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: SecurityAndDataSection -->
+<!-- BEGIN: FinalCallToActionSection -->
+<section class="py-24 px-6 text-center bg-gradient-to-b from-white to-slate-50 border-t border-slate-100">
+<div class="max-w-3xl mx-auto">
+<h2 class="text-3xl sm:text-5xl font-extrabold text-slate-950 tracking-tight leading-tight mb-4">
+          Rancang dari benang merah.
+        </h2>
+<p class="text-sm sm:text-base text-slate-600 max-w-xl mx-auto leading-relaxed mb-10">
+          Mulai dari kebutuhan, turunkan ke struktur, prototipe, data, dan proteksi. Jangan biarkan konteksnya terpisah.
+        </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+<a class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-medium text-sm text-white bg-brand-500 hover:bg-brand-600 transition-all shadow-sm" href="#mulai">
+<span class="">Mulai rancanganmu</span>
+<span class="text-brand-200">→</span>
+</a>
+<a class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-xl font-medium text-sm text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-subtle" href="#contoh">
+            Buka contoh proyek Ruang Ramu
+          </a>
+</div>
+</div>
+</section>
+<!-- END: FinalCallToActionSection -->
+</main>
+<!-- BEGIN: SiteFooter -->
+<footer class="bg-white border-t border-slate-100 py-16 px-6 text-xs text-slate-500">
+<div class="max-w-6xl mx-auto">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-slate-100">
+<!-- Brand Info -->
+<div class="md:col-span-5 space-y-3">
+<a class="flex items-center gap-2 font-bold text-slate-900 tracking-tight text-base" href="#">
+<div class="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center text-white">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9"></path>
+<path d="M17.64 15 22 10.64"></path>
+<path d="m20.91 3.26-6 6"></path>
+<path d="m14.9 9.3 2.1 2.1"></path>
+</svg>
+</div>
+<span class="">PaluKetok</span>
+</a>
+<p class="text-slate-500 max-w-sm leading-relaxed">
+            Ruang kerja untuk rancangan website, struktur, prototipe, data, dan proteksi.
+          </p>
+</div>
+<!-- Links Columns -->
+<div class="md:col-span-7 grid grid-cols-3 gap-6">
+<div>
+<div class="font-bold text-slate-900 mb-3">Produk</div>
+<ul class="space-y-2">
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Dokumen PRD</a></li>
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Sitemap</a></li>
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Prototipe</a></li>
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">ERD</a></li>
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Proteksi</a></li>
+</ul>
+</div>
+<div>
+<div class="font-bold text-slate-900 mb-3">Sumber</div>
+<ul class="space-y-2">
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Cara kerja</a></li>
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Untuk siapa</a></li>
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Contoh proyek</a></li>
+</ul>
+</div>
+<div>
+<div class="font-bold text-slate-900 mb-3">Kontak</div>
+<ul class="space-y-2">
+<li class=""><a class="hover:text-slate-900 transition-colors" href="mailto:hello@paluketok.id">hello@paluketok.id</a></li>
+<li class=""><a class="hover:text-slate-900 transition-colors" href="#">Dokumentasi &amp; sumber</a></li>
+</ul>
+</div>
+</div>
+</div>
+<!-- Bottom Bar -->
+<div class="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400">
+<div class="">© 2026 PaluKetok. Rancangan statis editable.</div>
+<div class="flex items-center gap-4">
+<a class="hover:text-slate-600 transition-colors" href="#">Privacy</a>
+<span class="">·</span>
+<a class="hover:text-slate-600 transition-colors" href="#">Terms</a>
+</div>
+</div>
+</div>
+</footer>
+<!-- END: SiteFooter -->
+
+
+
+
+</body></html>

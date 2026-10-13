@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+
+<html lang="id"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PaluKetok - Ruang Ramu Blueprint Overview</title>
+<!-- Tailwind CSS CDN with forms and container-queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Playfair+Display:ital,wght@1,500&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="base-styling">
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .font-serif-logo {
+      font-family: 'Playfair Display', serif;
+    }
+  </style>
+</head>
+<body class="bg-[#F8F9FA] text-[#1E293B] antialiased flex h-screen overflow-hidden text-sm">
+<!-- BEGIN: LeftSidebar -->
+<aside class="w-[260px] bg-white border-r border-[#E2E8F0] flex flex-col justify-between shrink-0 h-full select-none" data-purpose="sidebar">
+<!-- Top Sidebar Section -->
+<div class="p-4 flex flex-col gap-4 overflow-y-auto">
+<!-- Brand Logo & Studio Name -->
+<div class="flex items-center gap-2.5 px-2 py-1" data-purpose="brand-header">
+<div class="w-7 h-7 rounded-lg bg-black text-white flex items-center justify-center font-bold text-base shadow-sm">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+</svg>
+</div>
+<div>
+<h1 class="font-bold text-sm text-[#0F172A] leading-tight">PaluKetok</h1>
+<p class="text-[11px] text-[#64748B] font-medium leading-tight">Workspace Studio</p>
+</div>
+</div>
+<!-- Active Project Dropdown Switcher -->
+<div class="flex flex-col gap-1.5" data-purpose="project-selector-container">
+<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase px-2">Proyek Aktif</span>
+<div class="flex items-center justify-between border border-[#E2E8F0] rounded-xl px-3 py-2 bg-white hover:bg-slate-50 cursor-pointer shadow-xs transition-colors">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#0F172A]"></span>
+<span class="font-semibold text-xs text-[#0F172A]">Ruang Ramu</span>
+</div>
+<svg class="w-3.5 h-3.5 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M8 9l4-4 4 4m0 6l-4 4-4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- Main Navigation Menu -->
+<nav class="flex flex-col gap-1 pt-2" data-purpose="main-navigation">
+<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase px-2 mb-1">Rancangan Proyek</span>
+<!-- Active Link: Ringkasan -->
+<a class="flex items-center justify-between px-3 py-2 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE]/60 text-[#2563EB] font-medium text-xs" href="#">
+<div class="flex items-center gap-2.5">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Ringkasan</span>
+</div>
+</a>
+<!-- Struktur & Prototipe -->
+<a class="flex items-center justify-between px-3 py-2 rounded-xl text-[#475569] hover:bg-slate-50 font-medium text-xs transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Struktur &amp; prototipe</span>
+</div>
+<span class="text-[11px] text-[#94A3B8] font-normal">12</span>
+</a>
+<!-- Model Data · ERD -->
+<a class="flex items-center justify-between px-3 py-2 rounded-xl text-[#475569] hover:bg-slate-50 font-medium text-xs transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 7v10c0 2 1.5 3 3.5 3s3.5-1 3.5-3V7c0-2-1.5-3-3.5-3S4 5 4 7zm9 0v10c0 2 1.5 3 3.5 3s3.5-1 3.5-3V7c0-2-1.5-3-3.5-3S13 5 13 7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Model data · ERD</span>
+</div>
+<span class="text-[11px] text-[#94A3B8] font-normal">6</span>
+</a>
+<!-- Dokumen · PRD -->
+<a class="flex items-center justify-between px-3 py-2 rounded-xl text-[#475569] hover:bg-slate-50 font-medium text-xs transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Dokumen · PRD</span>
+</div>
+<span class="text-[11px] text-[#94A3B8] font-normal">18</span>
+</a>
+<!-- Proteksi -->
+<a class="flex items-center justify-between px-3 py-2 rounded-xl text-[#475569] hover:bg-slate-50 font-medium text-xs transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Proteksi</span>
+</div>
+<span class="text-[11px] text-[#94A3B8] font-normal">8/10</span>
+</a>
+<!-- Aktivitas proyek -->
+<a class="flex items-center justify-between px-3 py-2 rounded-xl text-[#475569] hover:bg-slate-50 font-medium text-xs transition-colors mt-2" href="#">
+<div class="flex items-center gap-2.5">
+<svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Aktivitas proyek</span>
+</div>
+</a>
+<!-- Referensi & aset -->
+<a class="flex items-center justify-between px-3 py-2 rounded-xl text-[#475569] hover:bg-slate-50 font-medium text-xs transition-colors" href="#">
+<div class="flex items-center gap-2.5">
+<svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span>Referensi &amp; aset</span>
+</div>
+</a>
+</nav>
+</div>
+<!-- Bottom Sidebar Section (Milestone & User Card) -->
+<div class="p-4 border-t border-[#F1F5F9] flex flex-col gap-3.5 bg-white" data-purpose="sidebar-footer">
+<!-- Milestone Box -->
+<div class="border border-[#E2E8F0] rounded-xl p-3 bg-white shadow-xs">
+<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase block mb-1">Milestone Berikutnya</span>
+<p class="font-bold text-xs text-[#0F172A]">Review rancangan</p>
+<p class="text-[11px] text-[#64748B] mt-0.5">14 Okt 2026 · 10.00 WIB</p>
+</div>
+<!-- User Profile Widget -->
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-[#1E293B] text-white flex items-center justify-center font-bold text-xs">
+            NA
+          </div>
+<div>
+<p class="text-xs font-bold text-[#0F172A] leading-tight">Nadia Ayu</p>
+<p class="text-[11px] text-[#64748B] leading-tight">Product designer</p>
+</div>
+</div>
+<button aria-label="Pengaturan pengguna" class="text-[#94A3B8] hover:text-[#475569] p-1 rounded-md" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+</div>
+</aside>
+<!-- END: LeftSidebar -->
+<!-- BEGIN: MainContentWrapper -->
+<div class="flex-1 flex flex-col h-full overflow-hidden bg-[#F8F9FA]" data-purpose="main-layout">
+<!-- BEGIN: TopBar -->
+<header class="h-14 border-b border-[#E2E8F0] bg-white flex items-center justify-between px-8 shrink-0" data-purpose="top-navigation-bar">
+<!-- Left: Breadcrumb -->
+<div class="flex items-center gap-2 text-xs">
+<div class="flex items-center gap-1.5 text-[#64748B]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="hover:underline cursor-pointer">Proyek</span>
+</div>
+<span class="text-[#CBD5E1]">/</span>
+<span class="font-bold text-[#0F172A]">Ruang Ramu</span>
+<span class="ml-1 text-[11px] font-semibold bg-[#F1F5F9] text-[#475569] px-2 py-0.5 rounded-full border border-[#E2E8F0]">MVP · v0.8</span>
+</div>
+<!-- Right: Actions & Collaborators -->
+<div class="flex items-center gap-4">
+<span class="text-xs text-[#64748B]">Tersimpan · 09.41</span>
+<!-- Collaborator Avatars -->
+<div class="flex -space-x-1.5">
+<div class="w-6 h-6 rounded-full bg-[#E2E8F0] border-2 border-white flex items-center justify-center text-[10px] font-semibold text-[#475569]">NA</div>
+<div class="w-6 h-6 rounded-full bg-[#CBD5E1] border-2 border-white flex items-center justify-center text-[10px] font-semibold text-[#475569]">DP</div>
+<div class="w-6 h-6 rounded-full bg-[#94A3B8] border-2 border-white flex items-center justify-center text-[10px] font-semibold text-white">FS</div>
+</div>
+<!-- Share Button -->
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-semibold text-[#0F172A] hover:bg-slate-50 shadow-2xs" type="button">
+<svg class="w-3.5 h-3.5 text-[#64748B]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+          Bagikan
+        </button>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- Scrollable Workspace Dashboard -->
+<main class="flex-1 overflow-y-auto px-8 py-6 space-y-6" data-purpose="dashboard-scrollable-content">
+<!-- BEGIN: PageTitleHeader -->
+<section class="flex items-start justify-between">
+<div>
+<span class="text-[11px] font-bold text-[#64748B] tracking-wider uppercase block mb-1">Ruang Ramu / Ringkasan</span>
+<h2 class="text-2xl font-bold text-[#0F172A] tracking-tight">Rancangan yang saling terhubung.</h2>
+<p class="text-xs text-[#64748B] mt-1">Dari kebutuhan pertama sampai keputusan teknis, dalam satu benang merah.</p>
+</div>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-xs font-semibold text-[#0F172A] hover:bg-slate-50 shadow-2xs" type="button">
+<svg class="w-4 h-4 text-[#64748B]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+          Ekspor blueprint
+        </button>
+</section>
+<!-- END: PageTitleHeader -->
+<!-- BEGIN: ProjectOverviewCard -->
+<section class="border border-[#E2E8F0] bg-white rounded-2xl p-5 shadow-xs flex items-center justify-between" data-purpose="project-metadata-card">
+<div class="flex items-center gap-4">
+<!-- Monogram Logo Container -->
+<div class="w-16 h-16 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center shrink-0">
+<span class="font-serif-logo text-2xl font-bold text-[#0F172A] italic">Rr.</span>
+</div>
+<!-- Project Details -->
+<div>
+<div class="flex items-center gap-2 mb-1">
+<h3 class="text-base font-bold text-[#0F172A]">Ruang Ramu</h3>
+<span class="text-[11px] font-medium bg-[#F1F5F9] text-[#475569] px-2 py-0.5 rounded-full border border-[#E2E8F0]">Dalam perencanaan</span>
+</div>
+<p class="text-xs text-[#64748B]">Platform reservasi workshop kreatif di Jakarta.</p>
+<div class="flex items-center gap-2 text-[11px] text-[#64748B] mt-1.5 font-medium">
+<span>Web responsif</span>
+<span>·</span>
+<span>Pemilik: Nadia Ayu</span>
+<span>·</span>
+<span>Target rilis: 30 Nov 2026</span>
+</div>
+</div>
+</div>
+<!-- Blueprint Readiness Progress Bar -->
+<div class="w-56 shrink-0 pl-4">
+<div class="flex justify-between items-baseline mb-1.5">
+<span class="text-[11px] text-[#64748B] font-medium">Kesiapan blueprint</span>
+<span class="text-xs font-bold text-[#0F172A]">72%</span>
+</div>
+<!-- Progress Bar Track -->
+<div class="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
+<div class="h-full bg-[#0F172A] rounded-full" style="width: 72%;"></div>
+</div>
+<p class="text-[11px] text-[#94A3B8] mt-1.5 text-right font-medium">Menuju review rancangan · 14 Okt</p>
+</div>
+</section>
+<!-- END: ProjectOverviewCard -->
+<!-- BEGIN: KeyMetricsGrid -->
+<section class="grid grid-cols-4 gap-4" data-purpose="metrics-summary">
+<!-- Metric 1: Halaman Website -->
+<div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-xs relative">
+<div class="absolute top-4 right-4 text-[#94A3B8]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-2xl font-bold text-[#0F172A] block tracking-tight">12</span>
+<p class="text-xs font-semibold text-[#0F172A] mt-1">Halaman website</p>
+<p class="text-[11px] text-[#64748B] mt-0.5">9 siap · 3 dalam rancangan</p>
+</div>
+<!-- Metric 2: Entitas Data -->
+<div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-xs relative">
+<div class="absolute top-4 right-4 text-[#94A3B8]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 7v10c0 2 1.5 3 3.5 3s3.5-1 3.5-3V7c0-2-1.5-3-3.5-3S4 5 4 7zm9 0v10c0 2 1.5 3 3.5 3s3.5-1 3.5-3V7c0-2-1.5-3-3.5-3S13 5 13 7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-2xl font-bold text-[#0F172A] block tracking-tight">6</span>
+<p class="text-xs font-semibold text-[#0F172A] mt-1">Entitas data</p>
+<p class="text-[11px] text-[#64748B] mt-0.5">7 relasi sudah dipetakan</p>
+</div>
+<!-- Metric 3: Kebutuhan Produk -->
+<div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-xs relative">
+<div class="absolute top-4 right-4 text-[#94A3B8]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-2xl font-bold text-[#0F172A] block tracking-tight">18</span>
+<p class="text-xs font-semibold text-[#0F172A] mt-1">Kebutuhan produk</p>
+<p class="text-[11px] text-[#64748B] mt-0.5">14 disetujui · 4 perlu review</p>
+</div>
+<!-- Metric 4: Kontrol Proteksi -->
+<div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-xs relative">
+<div class="absolute top-4 right-4 text-[#94A3B8]">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-2xl font-bold text-[#0F172A] block tracking-tight">8/10</span>
+<p class="text-xs font-semibold text-[#0F172A] mt-1">Kontrol proteksi</p>
+<p class="text-[11px] text-[#64748B] mt-0.5">2 keputusan masih terbuka</p>
+</div>
+</section>
+<!-- END: KeyMetricsGrid -->
+<!-- BEGIN: MidSectionSplit -->
+<section class="grid grid-cols-12 gap-5" data-purpose="traceability-and-protection-section">
+<!-- Left: Benang Merah Rancangan (8 Cols) -->
+<div class="col-span-8 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs flex flex-col justify-between" data-purpose="design-thread-card">
+<div>
+<!-- Header with Title and External Link -->
+<div class="flex items-center justify-between">
+<h3 class="font-bold text-sm text-[#0F172A]">Benang merah rancangan</h3>
+<a class="text-xs font-semibold text-[#2563EB] hover:underline inline-flex items-center gap-1" href="#">
+                Lihat keterkaitan ↗
+              </a>
+</div>
+<p class="text-xs text-[#64748B] mt-0.5">Satu kebutuhan, ditelusuri sampai halaman, data, dan proteksinya.</p>
+<!-- 4-Stage Connected Node Flow -->
+<div class="grid grid-cols-4 gap-3 mt-6 relative" data-purpose="traceability-flow">
+<!-- Node 1: PRD -->
+<div class="border border-[#E2E8F0] rounded-xl p-3 bg-white hover:border-slate-300 transition-colors">
+<div class="w-7 h-7 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] mb-2.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase block">PRD · F-04</span>
+<p class="text-xs font-bold text-[#0F172A] mt-0.5 truncate">Reservasi workshop</p>
+<p class="text-[11px] text-[#64748B] mt-0.5 truncate">Pilih jadwal, pesan tempat</p>
+</div>
+<!-- Node 2: HALAMAN -->
+<div class="border border-[#E2E8F0] rounded-xl p-3 bg-white hover:border-slate-300 transition-colors">
+<div class="w-7 h-7 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] mb-2.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase block">HALAMAN · P-05</span>
+<p class="text-xs font-bold text-[#0F172A] mt-0.5 truncate">Detail workshop</p>
+<p class="text-[11px] text-[#64748B] mt-0.5 truncate font-mono text-[10px]">/workshop/:slug</p>
+</div>
+<!-- Node 3: ENTITAS -->
+<div class="border border-[#E2E8F0] rounded-xl p-3 bg-white hover:border-slate-300 transition-colors">
+<div class="w-7 h-7 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] mb-2.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M4 7v10c0 2 1.5 3 3.5 3s3.5-1 3.5-3V7c0-2-1.5-3-3.5-3S4 5 4 7zm9 0v10c0 2 1.5 3 3.5 3s3.5-1 3.5-3V7c0-2-1.5-3-3.5-3S13 5 13 7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase block">ENTITAS · E-04</span>
+<p class="text-xs font-bold text-[#0F172A] mt-0.5 truncate font-mono">bookings</p>
+<p class="text-[11px] text-[#64748B] mt-0.5 truncate text-[10px] font-mono">user_id → session_id</p>
+</div>
+<!-- Node 4: PROTEKSI -->
+<div class="border border-[#E2E8F0] rounded-xl p-3 bg-white hover:border-slate-300 transition-colors">
+<div class="w-7 h-7 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] mb-2.5">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase block">PROTEKSI · S-03</span>
+<p class="text-xs font-bold text-[#0F172A] mt-0.5 truncate">Akses berbasis peran</p>
+<p class="text-[11px] text-[#64748B] mt-0.5 truncate">Peserta hanya lihat miliknya</p>
+</div>
+</div>
+</div>
+<!-- Flow Footer Status -->
+<div class="flex items-center justify-between pt-5 mt-5 border-t border-[#F1F5F9]">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+              14 kebutuhan terhubung
+            </span>
+<span class="text-[11px] text-[#64748B]">4 kebutuhan belum memiliki halaman</span>
+</div>
+</div>
+<!-- Right: Proteksi Sejak Awal (4 Cols) -->
+<div class="col-span-4 bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs flex flex-col justify-between" data-purpose="security-controls-card">
+<div>
+<!-- Header -->
+<div class="flex items-center justify-between">
+<h3 class="font-bold text-sm text-[#0F172A]">Proteksi sejak awal</h3>
+<svg class="w-4 h-4 text-[#94A3B8]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<p class="text-xs text-[#64748B] mt-1 leading-relaxed">
+              Rencana kontrol untuk akun, reservasi, dan data peserta. Belum merupakan audit keamanan.
+            </p>
+<!-- Checklist Status -->
+<div class="space-y-3 mt-4" data-purpose="security-status-items">
+<!-- Item 1: RBAC (Direncanakan) -->
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<span class="w-4 h-4 rounded-full border border-[#10B981] flex items-center justify-center text-[#10B981]">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+</span>
+<span class="text-[#0F172A] font-medium">RBAC peserta &amp; admin</span>
+</div>
+<span class="text-[11px] font-medium text-[#10B981]">Direncanakan</span>
+</div>
+<!-- Item 2: Rate limit (Direncanakan) -->
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<span class="w-4 h-4 rounded-full border border-[#10B981] flex items-center justify-center text-[#10B981]">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path></svg>
+</span>
+<span class="text-[#0F172A] font-medium">Validasi input &amp; rate limit</span>
+</div>
+<span class="text-[11px] font-medium text-[#10B981]">Direncanakan</span>
+</div>
+<!-- Item 3: Retensi (Perlu keputusan) -->
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<span class="w-4 h-4 rounded-full border border-dashed border-[#EF4444] flex items-center justify-center text-[#EF4444]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
+</span>
+<span class="text-[#0F172A] font-medium">Kebijakan retensi data</span>
+</div>
+<span class="text-[11px] font-medium text-[#EF4444]">Perlu keputusan</span>
+</div>
+<!-- Item 4: Backup (Perlu keputusan) -->
+<div class="flex items-center justify-between text-xs">
+<div class="flex items-center gap-2">
+<span class="w-4 h-4 rounded-full border border-dashed border-[#EF4444] flex items-center justify-center text-[#EF4444]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#EF4444]"></span>
+</span>
+<span class="text-[#0F172A] font-medium">Pemulihan &amp; backup</span>
+</div>
+<span class="text-[11px] font-medium text-[#EF4444]">Perlu keputusan</span>
+</div>
+</div>
+</div>
+<!-- Bottom Action -->
+<div class="pt-4 border-t border-[#F1F5F9] mt-4">
+<a class="text-xs font-semibold text-[#2563EB] hover:underline inline-flex items-center gap-1" href="#">
+              Tinjau 10 kontrol proteksi →
+            </a>
+</div>
+</div>
+</section>
+<!-- END: MidSectionSplit -->
+<!-- BEGIN: BottomSectionSplit -->
+<section class="grid grid-cols-12 gap-5" data-purpose="actions-and-activity-logs">
+<!-- Left: Sebelum Review Berikutnya (8 Cols) -->
+<div class="col-span-8" data-purpose="pending-review-tasks">
+<!-- Section Title with Counter -->
+<div class="flex items-center justify-between mb-3">
+<h3 class="font-bold text-sm text-[#0F172A]">Sebelum review berikutnya</h3>
+<span class="text-xs text-[#64748B]">3 terbuka</span>
+</div>
+<!-- Task Items List -->
+<div class="space-y-2">
+<!-- Task 1 -->
+<div class="bg-white border border-[#E2E8F0] rounded-xl p-3 shadow-xs flex items-center justify-between hover:border-slate-300 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-4 h-4 rounded-full border-2 border-[#94A3B8] shrink-0"></div>
+<span class="text-xs font-medium text-[#0F172A]">Tetapkan retensi data peserta</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-[#64748B]">
+<span>Proteksi · S-09</span>
+<span class="font-medium text-[#0F172A]">Dimas</span>
+</div>
+</div>
+<!-- Task 2 -->
+<div class="bg-white border border-[#E2E8F0] rounded-xl p-3 shadow-xs flex items-center justify-between hover:border-slate-300 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-4 h-4 rounded-full border-2 border-[#94A3B8] shrink-0"></div>
+<span class="text-xs font-medium text-[#0F172A]">Lengkapi alur pembatalan reservasi</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-[#64748B]">
+<span>Struktur · P-09</span>
+<span class="font-medium text-[#0F172A]">Nadia</span>
+</div>
+</div>
+<!-- Task 3 -->
+<div class="bg-white border border-[#E2E8F0] rounded-xl p-3 shadow-xs flex items-center justify-between hover:border-slate-300 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-4 h-4 rounded-full border-2 border-[#94A3B8] shrink-0"></div>
+<span class="text-xs font-medium text-[#0F172A]">Setujui batas kapasitas per sesi</span>
+</div>
+<div class="flex items-center gap-4 text-[11px] text-[#64748B]">
+<span>PRD · F-07</span>
+<span class="font-medium text-[#0F172A]">Farah</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Catatan Perjalanan (4 Cols) -->
+<div class="col-span-4" data-purpose="recent-activity-feed">
+<h3 class="font-bold text-sm text-[#0F172A] mb-3">Catatan perjalanan</h3>
+<div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-xs flex flex-col justify-between h-[156px]">
+<div class="space-y-2.5 text-xs text-[#64748B]">
+<p class="truncate"><span class="font-medium text-[#0F172A]">09.32</span> · Dimas memperbarui relasi bookings</p>
+<p class="truncate"><span class="font-medium text-[#0F172A]">09.15</span> · Nadia menautkan F-04 ke Detail workshop</p>
+<p class="truncate"><span class="font-medium text-[#0F172A]">Kemarin</span> · Farah menyetujui tujuan produk</p>
+</div>
+<div>
+<a class="text-xs font-semibold text-[#2563EB] hover:underline inline-flex items-center gap-1" href="#">
+                Semua aktivitas ↗
+              </a>
+</div>
+</div>
+</div>
+</section>
+<!-- END: BottomSectionSplit -->
+<!-- BEGIN: MicroFooter -->
+<footer class="pt-6 pb-2 border-t border-[#E2E8F0] flex items-center justify-between text-[11px] text-[#94A3B8] font-medium" data-purpose="canvas-footer-metadata">
+<span>RR-2026 / BLUEPRINT 008</span>
+<span>Rancangan yang jelas, sebelum satu baris kode.</span>
+</footer>
+<!-- END: MicroFooter -->
+</main>
+</div>
+<!-- END: MainContentWrapper -->
+</body></html>
