@@ -1,0 +1,134 @@
+@import 'tailwindcss';
+
+/*
+  Token diambil apa adanya dari design/web/*.html (tailwind.config di mockup).
+  Nama token mengikuti mockup supaya kelas utility bisa disalin tanpa menerjemahkan.
+  Nilai tidak diubah: warna, radius, shadow, font.
+*/
+@theme {
+	/* colors.brand.* + colors.canvas (mockup: tailwind.config.extend.colors) */
+	--color-brand-50: #eff6ff;
+	--color-brand-100: #dbeafe;
+	--color-brand-500: #2563eb;
+	--color-brand-600: #1d4ed8;
+	--color-brand-700: #1e40af;
+	/* brand-900 dipakai mockup (teks di kartu alur), tidak dideklarasikan di config-nya.
+	   Tailwind memetakan brand-900 ke palet blue-900 -> nilai diambil dari blue-900 kanonik. */
+	--color-brand-900: #1e3a8a;
+	--color-brand-400: #60a5fa; /* mockup: text-brand-400 (bagian gelap) */
+	--color-brand-200: #bfdbfe; /* mockup: text-brand-200, border-brand-200 */
+	--color-canvas: #fafafb;
+
+	/* boxShadow (mockup: shadow-app, shadow-subtle) */
+	--shadow-app: 0 20px 50px -12px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
+	--shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+
+	/* fontFamily */
+	--font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', monospace;
+
+	/*
+	  Line-height text-size DIBUAT SAMA dengan Tailwind v3 (Play CDN mockup).
+	  Tailwind v4 default: unitless (mis. text-sm -> 1.42857...), yang ikut
+	  mengecil di elemen anak ber-font-size kecil. v3: absolut (rem). Selisih
+	  terbaca nyata: blok halaman ringkasan -4..-14px vs mockup sebelum fix.
+	*/
+	--text-xs--line-height: 1rem;
+	--text-sm--line-height: 1.25rem;
+	--text-base--line-height: 1.5rem;
+	--text-lg--line-height: 1.75rem;
+	--text-xl--line-height: 1.75rem;
+	--text-2xl--line-height: 2rem;
+	--text-3xl--line-height: 2.25rem;
+	--text-4xl--line-height: 2.5rem;
+	--text-5xl--line-height: 1;
+	--text-6xl--line-height: 1;
+}
+
+/*
+  Ukuran mikro yang muncul puluhan kali di mockup (text-[9px] .. text-[11px]).
+  Sengaja BUKAN key `--text-*` di @theme: Tailwind v4 menambahkan line-height
+  fallback untuk key seperti itu, sedangkan `text-[11px]` di mockup hanya
+  menyetel font-size dan membiarkan line-height mewarisi. Selisihnya terbaca
+  nyata (13.3px vs 16px), jadi ditulis sebagai utility font-size saja.
+*/
+@utility text-4xs {
+	font-size: 9px;
+}
+@utility text-3xs {
+	font-size: 10px;
+}
+@utility text-2xs {
+	font-size: 11px;
+}
+
+/*
+  Font self-host (variable font, satu file per keluarga).
+  Mockup memakai <link> ke fonts.googleapis.com; di sini di-host lokal supaya
+  tidak ada request pihak ketiga saat runtime. Metrik sama, sumbu berat 200-800
+  untuk Plus Jakarta Sans dan 100-800 untuk JetBrains Mono.
+*/
+@font-face {
+	font-family: 'Plus Jakarta Sans';
+	font-style: normal;
+	font-weight: 200 800;
+	font-display: swap;
+	src: url('/fonts/plus-jakarta-sans.woff2') format('woff2-variations');
+}
+
+@font-face {
+	font-family: 'JetBrains Mono';
+	font-style: normal;
+	font-weight: 100 800;
+	font-display: swap;
+	src: url('/fonts/jetbrains-mono.woff2') format('woff2-variations');
+}
+
+/* Logo serif "Rr." — mockup ringkasanProyek.html: Playfair Display italic 500. */
+@font-face {
+	font-family: 'Playfair Display';
+	font-style: italic;
+	font-weight: 500;
+	font-display: swap;
+	src: url('/fonts/playfair-display-italic.woff2') format('woff2-variations');
+}
+
+/* Kelas mockup ringkasanProyek (style[data-purpose="base-styling"]). */
+.font-serif-logo {
+	font-family: 'Playfair Display', serif;
+}
+
+/* Micro-adjustment dari mockup (style[data-purpose="custom-layout"]) */
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	background-color: #ffffff;
+	color: #0f172a;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	/* Mockup dasrhboard.html style[data-purpose="custom-typography"]. */
+	font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+.grid-pattern {
+	background-size: 32px 32px;
+	background-image:
+		linear-gradient(to right, rgba(226, 232, 240, 0.6) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(226, 232, 240, 0.6) 1px, transparent 1px);
+}
+
+.card-node-connector {
+	position: relative;
+}
+
+.card-node-connector::after {
+	content: '';
+	position: absolute;
+	top: -12px;
+	left: 50%;
+	width: 2px;
+	height: 12px;
+	background-color: #cbd5e1;
+}
