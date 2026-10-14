@@ -110,3 +110,9 @@ Terbuka, belum ditutup: `artifact_versions.created_by_run_id` hanya berarti run 
 - Audit security DEFENSIVE dijalankan untuk integrasi DOKU (`candidates/doku-sec.md`): 8 temuan.
 - Uji Postgres 18: invoice_number dobel ditolak, request_id dobel ditolak, status `deny` ditolak CHECK, `expired_date` tersimpan benar (+07). 4/4.
 - Klaim "toleransi timestamp 10 detik" dari audit DIBUANG karena tidak terbukti di docs.
+
+## 2026-10-14 - Fase 10 Tahap B: /admin sebagai path, bukan subdomain (deviasi planner.md:136)
+
+- `planner.md:136` menyebut panel admin di `admin.paluketok.web.id` (subdomain). Deviasi: UI dibangun sebagai route `/admin` di aplikasi web yang sama, satu halaman dengan lima tab (Projects, Runs, Users, Keputusan, AI Settings).
+- Alasan: satu deploy, satu basis kode, guard `is_admin` dari `GET /v1/me` sudah cukup; subdomain butuh DNS + sertifikat terpisah yang belum ada di fase ini.
+- Kontrak BE tidak berubah: pemanggilan tetap `/v1/admin/*` seperti `openapi.md:34-40`. Perubahan hanya di sisi frontend.
