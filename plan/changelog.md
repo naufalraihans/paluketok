@@ -116,3 +116,23 @@ Terbuka, belum ditutup: `artifact_versions.created_by_run_id` hanya berarti run 
 - `planner.md:136` menyebut panel admin di `admin.paluketok.web.id` (subdomain). Deviasi: UI dibangun sebagai route `/admin` di aplikasi web yang sama, satu halaman dengan lima tab (Projects, Runs, Users, Keputusan, AI Settings).
 - Alasan: satu deploy, satu basis kode, guard `is_admin` dari `GET /v1/me` sudah cukup; subdomain butuh DNS + sertifikat terpisah yang belum ada di fase ini.
 - Kontrak BE tidak berubah: pemanggilan tetap `/v1/admin/*` seperti `openapi.md:34-40`. Perubahan hanya di sisi frontend.
+
+## 2026-10-14 - Deploy (cutover bertahap)
+
+- Fase 12 verified (smoke test mandiri + gaps ditutup), 7 commit di atas origin.
+- VPS 103.119.237.29 (satu mesin dengan SFM/naupatrol - tidak disentuh):
+  user `paluketok`, binary `/opt/paluketok/bin/paluketok` (linux amd64, dari
+  commit 3594e59), env `/opt/paluketok/.env` (mode 600), unit
+  `paluketok.service` (port 127.0.0.1:8081, Restart=on-failure, hardening dasar).
+- nginx site `paluketok` (HTTP, proxy ke 8081); healthz 200 via Host header
+  lokal + dari VPS; /v1/me 401; SFM tetap active.
+- DNS `paluketok.web.id` SUDAH menunjuk 103.119.237.29 (catatan lama "masih
+  216.198.79.1" basi).
+- BLOCKER sisa: provider (vpsmurah) mencegat HTTP Host tak-dikenal dengan
+  halaman "Domain belum terhubung" (404) SEBELUM sampai nginx. naupatrol lolos
+  karena sudah dibind di panel. Aksi Master: my.vpsmurah.co.id > VPS Saya >
+  Domain & Website > tambah paluketok.web.id + www.
+- Setelah bind: certbot --nginx -d paluketok.web.id -d www.paluketok.web.id,
+  lalu DOKU notify URL + rotate key, isi slot planner.
+- Catatan env: JEV_API_KEY kosong (JEV off sampai Master isi), DOKU_CLIENT_ID
+  masih 22 char (rotate wajib sebelum DOKU live).
