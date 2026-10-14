@@ -38,11 +38,17 @@ func (r *ProjectRepo) ListAll(ctx context.Context, page port.Page) ([]entity.Pro
 // --- plan_runs ---
 
 func (r *RunRepo) ListAllRuns(ctx context.Context, status string, userID entity.ID, page port.Page) ([]entity.PlanRun, error) {
+	// user_id kosong = tanpa filter. String kosong di-cast ke uuid → 22P02,
+	// jadi kirim NULL saat kosong (pola `$2::uuid is null`).
+	var uid any
+	if userID != "" {
+		uid = string(userID)
+	}
 	rows, err := r.db.Query(ctx, `
 		select `+runCols+` from plan_runs
 		where ($1 = '' or status = $1) and ($2::uuid is null or user_id = $2)
 		order by created_at desc limit $3 offset $4`,
-		status, userID, page.Limit, page.Offset)
+		status, uid, page.Limit, page.Offset)
 	if err != nil {
 		return nil, mapErr(err)
 	}

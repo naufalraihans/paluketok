@@ -112,10 +112,25 @@ func actorFrom(r *http.Request) entity.Actor {
 	return a
 }
 
+// pageFrom baca limit/offset. Absen/aneh → default 20, cap 100, offset >= 0.
+// Tanpa ini limit 0 sampai ke SQL (`limit 0`) dan list balik kosong.
 func pageFrom(r *http.Request) port.Page {
+	const (
+		defaultLimit = 20
+		maxLimit     = 100
+	)
 	q := r.URL.Query()
-	limit, _ := strconv.Atoi(q.Get("limit"))
-	offset, _ := strconv.Atoi(q.Get("offset"))
+	limit, err := strconv.Atoi(q.Get("limit"))
+	if err != nil || limit <= 0 {
+		limit = defaultLimit
+	}
+	if limit > maxLimit {
+		limit = maxLimit
+	}
+	offset, err := strconv.Atoi(q.Get("offset"))
+	if err != nil || offset < 0 {
+		offset = 0
+	}
 	return port.Page{Limit: limit, Offset: offset}
 }
 
