@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"paluketok/server/internal/delivery/middleware"
 	"paluketok/server/internal/entity"
@@ -34,12 +36,14 @@ type RouterOptions struct {
 func NewRouter(o RouterOptions) http.Handler {
 	mux := http.NewServeMux()
 
-	// health tanpa auth (workflow.md 7).
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+	healthz := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
+	}
+
+	// health tanpa auth (workflow.md 7).
+	mux.HandleFunc("GET /healthz", healthz)
 
 	// Webhook DOKU: TANPA JWT, dilindungi signature (security.md bagian 6).
 	mux.HandleFunc("POST /v1/webhooks/doku", o.Handlers.WebhookDOKU)
@@ -71,13 +75,23 @@ func NewRouter(o RouterOptions) http.Handler {
 	admin.HandleFunc("GET /v1/admin/settings/ai", o.Handlers.AdminListAISettings)
 	admin.HandleFunc("PUT /v1/admin/settings/ai/{slot}", o.Handlers.AdminSetAISetting)
 
+	// Rate limit (security.md bagian 8): key per user dari Actor (fallback IP).
+	// POST /runs 5/menit (jatah sendiri, keep), endpoint user lain 60/menit.
+	// Urutan: RateLimit(5) terluar, lalu RateLimit(60) — request yang bukan
+	// POST /runs lolos jatah 5 tanpa dihitung.
+	userRate := middleware.RateLimit(60, time.Minute)
+	runsRate := middleware.RateLimitScoped(5, time.Minute, func(r *http.Request) bool {
+		return r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/runs")
+	})
+	adminRate := middleware.RateLimit(30, time.Minute)
+
 	if o.Verifier != nil {
-		mux.Handle("/v1/admin/", middleware.JWT(o.Verifier)(middleware.Admin(admin)))
-		mux.Handle("/v1/", middleware.JWT(o.Verifier)(authed))
+		mux.Handle("/v1/admin/", middleware.JWT(o.Verifier)(middleware.Admin(adminRate(admin))))
+		mux.Handle("/v1/", middleware.JWT(o.Verifier)(userRate(runsRate(authed))))
 	} else if o.ActorFix.UserID != "" {
 		// Hanya test: actor tetap menggantikan JWT.
-		mux.Handle("/v1/admin/", middleware.WithActorFix(o.ActorFix)(middleware.Admin(admin)))
-		mux.Handle("/v1/", middleware.WithActorFix(o.ActorFix)(authed))
+		mux.Handle("/v1/admin/", middleware.WithActorFix(o.ActorFix)(middleware.Admin(adminRate(admin))))
+		mux.Handle("/v1/", middleware.WithActorFix(o.ActorFix)(userRate(runsRate(authed))))
 	} else {
 		// Test tanpa JWT (webhook murni): actor kosong.
 		mux.Handle("/v1/", authed)

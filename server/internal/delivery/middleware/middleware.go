@@ -179,18 +179,28 @@ func (rl *rateLimiter) Allow(key string) bool {
 // RateLimit membatasi per user (atau IP bila belum login) sampai `max` per window.
 // Lewat = 429 (security.md bagian 8).
 func RateLimit(max int, window time.Duration) func(http.Handler) http.Handler {
+	return RateLimitScoped(max, window, nil)
+}
+
+// RateLimitScoped seperti RateLimit, tapi hanya request yang lolos `keep`
+// dihitung dan bisa kena 429 (mis. POST /runs 5/menit vs endpoint lain
+// 60/menit, security.md bagian 8). keep nil = semua request dihitung.
+// Kunci = user ID dari Actor; fallback IP untuk request tanpa actor.
+func RateLimitScoped(max int, window time.Duration, keep func(*http.Request) bool) func(http.Handler) http.Handler {
 	rl := NewRateLimiter(max, window)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			key := r.RemoteAddr
-			if a, ok := ActorFrom(r.Context()); ok {
-				key = string(a.UserID)
-			}
-			if !rl.Allow(key) {
-				response.JSON(w, http.StatusTooManyRequests, map[string]any{
-					"error": response.ErrorBody{Code: response.CodeRateLimited, Message: "terlalu banyak request"},
-				})
-				return
+			if keep == nil || keep(r) {
+				key := r.RemoteAddr
+				if a, ok := ActorFrom(r.Context()); ok {
+					key = string(a.UserID)
+				}
+				if !rl.Allow(key) {
+					response.JSON(w, http.StatusTooManyRequests, map[string]any{
+						"error": response.ErrorBody{Code: response.CodeRateLimited, Message: "terlalu banyak request"},
+					})
+					return
+				}
 			}
 			next.ServeHTTP(w, r)
 		})
