@@ -28,3 +28,4 @@ Thumbs.db
 # Editor
 .idea/
 *.swp
+creds.local.json
