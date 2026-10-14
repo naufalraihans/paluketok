@@ -30,7 +30,7 @@ type Config struct {
 	DokuNotifyPath string
 	DokuIsProd     bool
 
-	// JWKS (security.md bagian 2). JWKSURL kosong = <SupabaseURL>/.well-known/jwks.json.
+	// JWKS (security.md bagian 2). JWKSURL kosong = <SupabaseURL>/auth/v1/.well-known/jwks.json.
 	JWKSURL string
 }
 

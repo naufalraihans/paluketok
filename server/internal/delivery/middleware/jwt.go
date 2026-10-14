@@ -65,12 +65,13 @@ type Verifier struct {
 	IsAdmin func(ctx context.Context, userID entity.ID) (bool, error)
 }
 
-// NewVerifier membuat verifier. jwksURL kosong = <supabaseURL>/.well-known/jwks.json.
+// NewVerifier membuat verifier. jwksURL kosong = <supabaseURL>/auth/v1/.well-known/jwks.json
+// (path JWKS Supabase; tanpa /auth/v1 → 404).
 func NewVerifier(supabaseURL, jwksURL string) *Verifier {
 	if jwksURL == "" {
 		u, err := url.Parse(supabaseURL)
 		if err == nil && u.Host != "" {
-			jwksURL = u.Scheme + "://" + u.Host + "/.well-known/jwks.json"
+			jwksURL = u.Scheme + "://" + u.Host + "/auth/v1/.well-known/jwks.json"
 		}
 	}
 	return &Verifier{
