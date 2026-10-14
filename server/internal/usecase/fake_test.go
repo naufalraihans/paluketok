@@ -338,9 +338,37 @@ func (r *fakeArtifactRepo) Update(_ context.Context, a *entity.Artifact) error {
 	return nil
 }
 
+// InsertVersion menegakkan unique (artifact_id, version) seperti index
+// uq_artifact_versions di Postgres (erd.dbml): duplikat = port.ErrConflict,
+// bukan diam-diam. Meniru 23505 agar bug tumbukan versi regenerate terbaca.
 func (r *fakeArtifactRepo) InsertVersion(_ context.Context, v *entity.ArtifactVersion) error {
+	for _, ex := range r.versions {
+		if ex.ArtifactID == v.ArtifactID && ex.Version == v.Version {
+			return port.ErrConflict
+		}
+	}
 	r.versions = append(r.versions, *v)
 	return nil
+}
+
+// HasVersionSet true bila pasangan (artifact_id, version) sudah ada di history.
+func (r *fakeArtifactRepo) HasVersionSet(_ context.Context, artifactID entity.ID, version int) (bool, error) {
+	for _, ex := range r.versions {
+		if ex.ArtifactID == artifactID && ex.Version == version {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// HasVersionSet versi fakeRegenRepo (regenerate_test.go), view sama.
+func (f *fakeRegenRepo) HasVersionSet(_ context.Context, artifactID entity.ID, version int) (bool, error) {
+	for _, ex := range f.versions {
+		if ex.ArtifactID == artifactID && ex.Version == version {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // fakeDecisionRepo menyimpan decisions dan menghitung putaran.

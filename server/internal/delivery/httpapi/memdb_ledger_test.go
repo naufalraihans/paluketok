@@ -51,9 +51,26 @@ func (m memArtifacts) Update(_ context.Context, a *entity.Artifact) error {
 func (m memArtifacts) InsertVersion(_ context.Context, v *entity.ArtifactVersion) error {
 	m.s.mu.Lock()
 	defer m.s.mu.Unlock()
+	for _, ex := range m.s.versions {
+		if ex.ArtifactID == v.ArtifactID && ex.Version == v.Version {
+			return port.ErrConflict
+		}
+	}
 	cp := *v
 	m.s.versions = append(m.s.versions, cp)
 	return nil
+}
+
+// HasVersionSet cek (artifact_id, version) di history (uq_artifact_versions).
+func (m memArtifacts) HasVersionSet(_ context.Context, artifactID entity.ID, version int) (bool, error) {
+	m.s.mu.Lock()
+	defer m.s.mu.Unlock()
+	for _, ex := range m.s.versions {
+		if ex.ArtifactID == artifactID && ex.Version == version {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (m memArtifacts) MarkDownstreamStale(_ context.Context, _ entity.ID, _ entity.Stage) error {

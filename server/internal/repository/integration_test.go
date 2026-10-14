@@ -333,6 +333,65 @@ func TestIntegration_ExpireOrder_DariPendingSaja(t *testing.T) {
 	}
 }
 
+// ===== regenerate: history versi & guard 23505 (F11 langkah 22) =====
+
+// Regenerasi nyata: pipeline menulis v1 lewat Upsert, usecase regenerate
+// tidak boleh menulis ulang v1 (23505 uq_artifacts_versions); v2 masuk sekali.
+func TestIntegration_Regenerate_HistoryVersiSekali(t *testing.T) {
+	pool, repos := testDB(t)
+	mustProfile(t, pool, 5)
+	now := time.Now()
+	p := mustProject(t, repos, now)
+	run := newTestRun(p, now)
+	if err := repos.Ledger.ChargeForRun(context.Background(), testUserA, run); err != nil {
+		t.Fatalf("charge: %v", err)
+	}
+	art := &entity.Artifact{
+		ID: entity.ID(newUUID()), RunID: run.ID, UserID: testUserA,
+		Kind: entity.StagePRD, Content: "konten v1", Version: 1,
+		Status: entity.ArtifactDraft, CreatedAt: now, UpdatedAt: now,
+	}
+	// pipeline: Upsert menulis artifacts + history v1.
+	if err := repos.Artifacts.Upsert(context.Background(), art); err != nil {
+		t.Fatalf("upsert v1: %v", err)
+	}
+	// restart pipeline: Upsert ulang guard not exists -> history tetap 1 baris.
+	if err := repos.Artifacts.Upsert(context.Background(), art); err != nil {
+		t.Fatalf("upsert ulang: %v", err)
+	}
+	var n int
+	if err := pool.QueryRow(context.Background(),
+		`select count(*) from artifact_versions where artifact_id=$1 and version=1`,
+		art.ID).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("history v1 ingin 1 baris, dapat %d (err=%v)", n, err)
+	}
+	// regenerate yang kirim versi lama (=1) lagi ditolak DB (23505).
+	dup := &entity.ArtifactVersion{
+		ID: entity.ID(newUUID()), ArtifactID: art.ID, Version: 1,
+		Content: "konten v1", CreatedByRunID: &run.ID, CreatedAt: now,
+	}
+	if err := repos.Artifacts.InsertVersion(context.Background(), dup); err == nil {
+		t.Fatal("insert v1 kedua harus ditolak unique (23505), dapat nil")
+	}
+	if ok, err := repos.Artifacts.HasVersionSet(context.Background(), art.ID, 1); err != nil || !ok {
+		t.Fatalf("HasVersionSet v1 ingin true, dapat %v (err=%v)", ok, err)
+	}
+	if ok, _ := repos.Artifacts.HasVersionSet(context.Background(), art.ID, 2); ok {
+		t.Fatal("HasVersionSet v2 ingin false")
+	}
+	// versi baru (v2) masuk sekali dan terbaca.
+	v2 := &entity.ArtifactVersion{
+		ID: entity.ID(newUUID()), ArtifactID: art.ID, Version: 2,
+		Content: "konten v2", CreatedByRunID: &run.ID, CreatedAt: now,
+	}
+	if err := repos.Artifacts.InsertVersion(context.Background(), v2); err != nil {
+		t.Fatalf("insert v2: %v", err)
+	}
+	if ok, _ := repos.Artifacts.HasVersionSet(context.Background(), art.ID, 2); !ok {
+		t.Fatal("HasVersionSet v2 ingin true setelah insert")
+	}
+}
+
 // ===== profil & project =====
 
 func TestIntegration_ProfileDanProjectCRUD(t *testing.T) {

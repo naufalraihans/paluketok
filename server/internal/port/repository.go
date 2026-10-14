@@ -98,6 +98,10 @@ type ArtifactRepo interface {
 	// InsertVersion menyimpan versi lama sebelum artifacts ditimpa
 	// (plan/erd.md "Aturan versi artefak").
 	InsertVersion(ctx context.Context, v *entity.ArtifactVersion) error
+	// HasVersionSet true bila (artifact_id, version) sudah ada di history.
+	// Regenerate memakainya agar tidak menulis ulang versi lama hasil Upsert
+	// pipeline (23505 uq_artifact_versions).
+	HasVersionSet(ctx context.Context, artifactID entity.ID, version int) (bool, error)
 	// MarkDownstreamStale set status='stale' semua artefak tahap sesudah
 	// `after` pada run yang sama (planner.md bagian 7 regenerate).
 	MarkDownstreamStale(ctx context.Context, runID entity.ID, after entity.Stage) error

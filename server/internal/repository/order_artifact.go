@@ -122,6 +122,17 @@ func (r *ArtifactRepo) InsertVersion(ctx context.Context, v *entity.ArtifactVers
 	return mapErr(err)
 }
 
+// HasVersionSet true bila (artifact_id, version) sudah ada di history
+// (uq_artifact_versions). Dipakai regenerate agar versi lama hasil Upsert
+// pipeline tidak ditulis ulang (23505).
+func (r *ArtifactRepo) HasVersionSet(ctx context.Context, artifactID entity.ID, version int) (bool, error) {
+	var ok bool
+	err := r.db.QueryRow(ctx,
+		`select exists (select 1 from artifact_versions where artifact_id=$1 and version=$2)`,
+		artifactID, version).Scan(&ok)
+	return ok, mapErr(err)
+}
+
 // --- DecisionRepo ---
 
 type DecisionRepo struct{ db dbtx }

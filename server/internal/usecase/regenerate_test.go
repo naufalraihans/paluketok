@@ -21,8 +21,9 @@ const (
 
 type fakeRegenRepo struct {
 	port.ArtifactRepo
-	art   entity.Artifact
-	stale []entity.Stage
+	art      entity.Artifact
+	stale    []entity.Stage
+	versions []entity.ArtifactVersion
 }
 
 func (f *fakeRegenRepo) GetByID(_ context.Context, id entity.ID) (*entity.Artifact, error) {
@@ -32,7 +33,14 @@ func (f *fakeRegenRepo) GetByID(_ context.Context, id entity.ID) (*entity.Artifa
 	a := f.art
 	return &a, nil
 }
-func (f *fakeRegenRepo) InsertVersion(_ context.Context, _ *entity.ArtifactVersion) error {
+func (f *fakeRegenRepo) InsertVersion(_ context.Context, v *entity.ArtifactVersion) error {
+	// unik (artifact_id, version) ala uq_artifact_versions: duplikat = 23505.
+	for _, ex := range f.versions {
+		if ex.ArtifactID == v.ArtifactID && ex.Version == v.Version {
+			return port.ErrConflict
+		}
+	}
+	f.versions = append(f.versions, *v)
 	return nil
 }
 func (f *fakeRegenRepo) Update(_ context.Context, a *entity.Artifact) error { f.art = *a; return nil }
@@ -132,6 +140,82 @@ func TestRegenerate_Sukses(t *testing.T) {
 	}
 	if len(arts.stale) != 1 || arts.stale[0] != entity.StagePRD {
 		t.Fatalf("hilir stale tidak ditandai: %v", arts.stale)
+	}
+}
+
+// --- 23505: pipeline sudah menulis v1 ke history lewat Upsert (guard
+// not exists, artifact_upsert.go). Regenerate yang mengirim versi LAMA (=1)
+// lagi TIDAK BOLEH membuat usecase gagal: versi lama cukup sekali di history
+// (erd.md "Aturan versi"). Di DB asli ini 23505 uq_artifact_versions ---
+func TestRegenerate_VersiLamaSudahDiHistory_TetapSukses(t *testing.T) {
+	uc, arts, ledger, _ := regenUsecase(t, nil, "isi baru")
+	// kondisi asli: pipeline run sudah menulis history versi 1.
+	runAsal := runIDReg
+	arts.versions = append(arts.versions, entity.ArtifactVersion{
+		ID: "0197a23e-4444-7000-8000-0000000000aa", ArtifactID: artIDReg,
+		Version: 1, Content: "lama", CreatedByRunID: &runAsal,
+	})
+	art, err := uc.RegenerateArtifact(context.Background(),
+		entity.Actor{UserID: uidReg}, artIDReg)
+	if err != nil {
+		t.Fatalf("regenerate harus sukses walau v1 sudah di history: %v", err)
+	}
+	if ledger.refund != 0 {
+		t.Fatalf("tidak seharusnya refund: %d", ledger.refund)
+	}
+	if art.Version != 2 || art.Content != "isi baru" {
+		t.Fatalf("versi/isi salah: v%d %q", art.Version, art.Content)
+	}
+	if arts.art.Version != 2 || arts.art.Content != "isi baru" {
+		t.Fatalf("artifact tersimpan salah: v%d %q", arts.art.Version, arts.art.Content)
+	}
+	// history harus tetap TEPAT SEKALI per versi: v1 tanpa duplikat.
+	n := 0
+	for _, v := range arts.versions {
+		if v.Version == 1 {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("history v1 ingin 1 baris, dapat %d", n)
+	}
+}
+
+// --- regenerate dua kali berturut: history v1,v2 tanpa duplikat/loncat,
+// artifacts.version = 3 (erd.md "Aturan versi") ---
+func TestRegenerate_DuaKali_HistoryBerurutan(t *testing.T) {
+	uc, arts, _, _ := regenUsecase(t, nil, "isi v2")
+	// kondisi asli: history v1 sudah ditulis pipeline.
+	runAsal := runIDReg
+	arts.versions = append(arts.versions, entity.ArtifactVersion{
+		ID: "0197a23e-4444-7000-8000-0000000000aa", ArtifactID: artIDReg,
+		Version: 1, Content: "lama", CreatedByRunID: &runAsal,
+	})
+	if _, err := uc.RegenerateArtifact(context.Background(), entity.Actor{UserID: uidReg}, artIDReg); err != nil {
+		t.Fatalf("regenerate 1: %v", err)
+	}
+	uc.SetRegenerator(fakeRegenerator{content: "isi v3"})
+	if _, err := uc.RegenerateArtifact(context.Background(), entity.Actor{UserID: uidReg}, artIDReg); err != nil {
+		t.Fatalf("regenerate 2: %v", err)
+	}
+	if arts.art.Version != 3 {
+		t.Fatalf("artifacts.version ingin 3, dapat %d", arts.art.Version)
+	}
+	versi := map[int]bool{}
+	for _, v := range arts.versions {
+		if v.ArtifactID != artIDReg {
+			continue
+		}
+		if versi[v.Version] {
+			t.Fatalf("versi %d dobel di history", v.Version)
+		}
+		versi[v.Version] = true
+	}
+	if !versi[1] || !versi[2] {
+		t.Fatalf("history harus berisi v1 dan v2, dapat %v", versi)
+	}
+	if versi[3] {
+		t.Fatal("versi 3 belum lama, tidak boleh masuk history")
 	}
 }
 

@@ -79,12 +79,22 @@ func (u *RunUsecase) RegenerateArtifact(ctx context.Context, actor entity.Actor,
 	}
 
 	// Simpan: versi lama ke artifact_versions, artifacts.content+version naik.
-	if err := u.deps.Artifacts.InsertVersion(ctx, &entity.ArtifactVersion{
-		ID: u.ids().New(), ArtifactID: art.ID, Version: art.Version,
-		Content: art.Content, CreatedByRunID: &art.RunID, CreatedAt: u.clock(),
-	}); err != nil {
+	// Guard (erd.md "Aturan versi"): pipeline run sudah menulis v1 lewat
+	// ArtifactRepo.Upsert; mengirim versi lama yang sudah ada = 23505 di DB
+	// asli. Tulis hanya bila (artifact_id, version) belum ada di history.
+	fresh, err := u.deps.Artifacts.HasVersionSet(ctx, art.ID, art.Version)
+	if err != nil {
 		u.refundRegenerate(ctx, art.UserID, chargeID)
 		return nil, wrap(err)
+	}
+	if !fresh {
+		if err := u.deps.Artifacts.InsertVersion(ctx, &entity.ArtifactVersion{
+			ID: u.ids().New(), ArtifactID: art.ID, Version: art.Version,
+			Content: art.Content, CreatedByRunID: &art.RunID, CreatedAt: u.clock(),
+		}); err != nil {
+			u.refundRegenerate(ctx, art.UserID, chargeID)
+			return nil, wrap(err)
+		}
 	}
 	art.Version++
 	art.Content = content
