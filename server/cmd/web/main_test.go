@@ -1,5 +1,5 @@
 // Smoke test composition root (tolakan F5): sistem penuh dirakit seperti
-// produksi lewat newServer(".env") — TANPA merakit Deps sendiri — lalu server
+// produksi lewat newServer("../../.env") — TANPA merakit Deps sendiri — lalu server
 // nyata ListenAndServe di 127.0.0.1 port acak dan /healthz divalidasi HTTP 200.
 // Ini membuktikan panic "IDGenerator wajib diisi" tidak kembali.
 package main
@@ -14,12 +14,17 @@ import (
 
 // TestNewServer_CompositionRoot merakit composition root asli (pool Supabase
 // sandbox dari env) lalu menyodok /healthz dan /v1/me dari port nyata.
+// Path .env relatif cwd paket (server/cmd/web), jadi "../../.env".
 func TestNewServer_CompositionRoot(t *testing.T) {
 	if os.Getenv("PALUKETOK_SMOKE") == "" {
 		t.Skip("smoke butuh DATABASE_URL sandbox: set PALUKETOK_SMOKE=1")
 	}
+	const envPath = "../../.env"
+	if _, err := os.Stat(envPath); err != nil {
+		t.Skipf("smoke: %s tidak ada", envPath)
+	}
 
-	srv, err := newServer("")
+	srv, err := newServer(envPath)
 	if err != nil {
 		t.Fatalf("composition root gagal: %v", err)
 	}
