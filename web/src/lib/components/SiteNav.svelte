@@ -1,8 +1,12 @@
 <script lang="ts">
 	import Icon from '#lib/components/Icon.svelte';
 	import type { LandingContent } from '#lib/mock/types';
+	import { auth, logout } from '#lib/auth.svelte';
 
 	let { nav }: { nav: LandingContent['nav'] } = $props();
+
+	// Fase 10 revisi: /login dan /register halaman nyata. Sesi tampil di nav:
+	// username + kredit (GET /v1/me), link admin hanya kalau is_admin.
 </script>
 
 <header
@@ -26,19 +30,39 @@
 			{#each nav.links as link (link.href)}
 				<a class="hover:text-slate-900 transition-colors" href={link.href}>{link.label}</a>
 			{/each}
+			{#if auth.me?.is_admin}
+				<a class="hover:text-slate-900 transition-colors" href="/admin">Admin</a>
+			{/if}
 		</nav>
 		<!-- Right Action CTAs -->
 		<div class="flex items-center gap-5">
-			<a
-				class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-				href={nav.signIn.href}>{nav.signIn.label}</a
-			>
-			<a
-				class="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-slate-950 text-white hover:bg-slate-800 transition-all shadow-sm"
-				href={nav.primaryCta.href}
-			>
-				{nav.primaryCta.label}
-			</a>
+			{#if auth.user}
+				<a
+					class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+					href="/billing"
+				>
+					{auth.me?.username ?? auth.user.email}
+					{#if auth.me}<span class="text-slate-400">· {auth.me.credits} kredit</span>{/if}
+				</a>
+				<button
+					type="button"
+					class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+					onclick={logout}>Keluar</button
+				>
+				<a
+					class="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-slate-950 text-white hover:bg-slate-800 transition-all shadow-sm"
+					href="/projects">Dashboard</a
+				>
+			{:else}
+				<a
+					class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+					href="/login">Masuk</a
+				>
+				<a
+					class="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-slate-950 text-white hover:bg-slate-800 transition-all shadow-sm"
+					href="/register">Daftar</a
+				>
+			{/if}
 		</div>
 	</div>
 </header>

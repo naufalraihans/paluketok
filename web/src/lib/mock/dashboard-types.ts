@@ -26,6 +26,8 @@ export type ProjectStatus = 'ready' | 'draft' | 'archived';
 
 /** Kartu proyek pada daftar. */
 export type ProjectCard = {
+	/** UUID proyek dari API; kartu mock boleh kosong. */
+	id?: string;
 	name: string;
 	brief: string;
 	stack: string;

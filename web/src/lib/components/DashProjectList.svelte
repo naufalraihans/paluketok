@@ -48,7 +48,8 @@
 							class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer"
 							type="button"
 							onclick={() => {
-								window.location.href = `/projects/${card.name.toLowerCase().replace(/\s+/g, '-')}`;
+								const target = card.id ?? card.name.toLowerCase().replace(/\s+/g, '-');
+								window.location.href = `/projects/${target}`;
 							}}
 						>
 							{card.action}
