@@ -53,7 +53,19 @@ jobs:
 
       - name: Build frontend (static)
         working-directory: web
+        env:
+          # Nilai PUBLIK (dikirim ke browser) — anon key Supabase memang
+          # dirancang terbuka; proteksi sebenarnya ada di RLS.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
         run: |
+          # Vite membekukan VITE_* saat build, jadi harus ada sebelum build.
+          {
+            echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL"
+            echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY"
+            echo "VITE_API_BASE=$VITE_API_BASE"
+          } > .env.production
           bun install
           bun run build
 
