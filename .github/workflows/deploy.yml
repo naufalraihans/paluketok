@@ -1,0 +1,104 @@
+name: Deploy
+
+# Push ke main = produksi ikut berubah.
+#
+# Build di runner GitHub (VPS tak perlu Go), lalu kirim binary jadi + FE statis
+# ke VPS lewat SSH, restart service, verifikasi healthz. Kalau healthz gagal,
+# langkah terakhir mengembalikan binary sebelumnya.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # tombol "Run workflow" di tab Actions
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  VPS_HOST: ${{ secrets.VPS_HOST }}
+  VPS_USER: ${{ secrets.VPS_USER }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: server/go.sum
+
+      # Gerbang mutu: jangan kirim apa pun ke produksi kalau test tak lolos.
+      - name: Test backend
+        working-directory: server
+        run: |
+          gofmt -l . | tee /tmp/fmt
+          test ! -s /tmp/fmt
+          go vet ./...
+          go test -count=1 ./...
+
+      - name: Build backend (linux)
+        working-directory: server
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -trimpath -ldflags="-s -w" -o /tmp/paluketok ./cmd/web
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build frontend (static)
+        working-directory: web
+        run: |
+          bun install
+          bun run build
+
+      - name: Siapkan kunci SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Kirim binary + FE
+        working-directory: web
+        run: |
+          scp /tmp/paluketok            "$VPS_USER@$VPS_HOST:/tmp/paluketok.new"
+          tar -C build -czf /tmp/web.tgz .
+          scp /tmp/web.tgz              "$VPS_USER@$VPS_HOST:/tmp/web.tgz"
+
+      - name: Pasang + restart
+        run: |
+          ssh "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          # Simpan yang lama supaya bisa dikembalikan kalau healthz gagal.
+          sudo cp -a /opt/paluketok/bin/paluketok /opt/paluketok/bin/.prev
+          sudo install -o paluketok -g paluketok -m 0755 /tmp/paluketok.new /opt/paluketok/bin/paluketok
+
+          # FE statis: tukar direktori, bukan timpa isi (hindari sisa file lama).
+          sudo mkdir -p /var/www/paluketok.new
+          sudo tar -C /var/www/paluketok.new -xzf /tmp/web.tgz
+          sudo chown -R www-data:www-data /var/www/paluketok.new
+          sudo rsync -a --delete /var/www/paluketok.new/ /var/www/paluketok/
+          sudo rm -rf /var/www/paluketok.new /tmp/web.tgz /tmp/paluketok.new
+
+          # SFM tidak pernah disentuh.
+          sudo systemctl restart paluketok.service
+          sleep 2
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8081/healthz || true)
+          if [ "$code" != "200" ]; then
+            echo "healthz=$code -> KEMBALIKAN binary sebelumnya"
+            sudo install -o paluketok -g paluketok -m 0755 /opt/paluketok/bin/.prev /opt/paluketok/bin/paluketok
+            sudo systemctl restart paluketok.service
+            exit 1
+          fi
+
+          echo "healthz=200 ok"
+          systemctl is-active paluketok.service sfm-server sfm-worker
+          REMOTE
