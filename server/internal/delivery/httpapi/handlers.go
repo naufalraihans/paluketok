@@ -26,9 +26,6 @@ type Handlers struct {
 
 	// SubmitOp antrean worker (Fase 6); nil di test worker-less.
 	Submitter Submitter
-	// NotifyPath: path notifikasi TERDAFTAR di Ba...[truncated]
-	// (security.md bagian 6 langkah 4). Dari config, bukan dari header.
-	NotifyPath string
 }
 
 // --- error mapping: usecase error -> HTTP sesuai openapi.md bagian Error ---
@@ -44,6 +41,14 @@ func writeErr(w http.ResponseWriter, r *http.Request, err error) {
 		code, status, msg = response.CodeUnauthorized, http.StatusUnauthorized, "tidak sah"
 	case errors.Is(err, usecase.ErrForbidden):
 		code, status, msg = response.CodeForbidden, http.StatusForbidden, "tidak diizinkan"
+	// port.ErrForbidden datang dari adapter gateway (signature webhook tidak
+	// cocok). Bukan kesalahan server: pemanggilnya memang tidak diizinkan.
+	case errors.Is(err, port.ErrForbidden):
+		code, status, msg = response.CodeForbidden, http.StatusForbidden, "tidak diizinkan"
+	case errors.Is(err, port.ErrNotFound):
+		code, status, msg = response.CodeNotFound, http.StatusNotFound, "tidak ditemukan"
+	case errors.Is(err, port.ErrValidation):
+		code, status, msg = response.CodeValidation, http.StatusUnprocessableEntity, "data tidak valid"
 	case errors.Is(err, usecase.ErrNotFound):
 		code, status, msg = response.CodeNotFound, http.StatusNotFound, "tidak ditemukan"
 	case errors.Is(err, usecase.ErrConflict):

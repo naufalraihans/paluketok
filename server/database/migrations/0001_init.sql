@@ -120,7 +120,7 @@ create index if not exists idx_decisions_run_stage on public.decisions (run_id, 
 create index if not exists idx_decisions_user_created on public.decisions (user_id, created_at);
 
 -- ============================================================
--- orders (DOKU)
+-- orders
 -- ============================================================
 create table if not exists public.orders (
   id              uuid primary key default gen_random_uuid(),

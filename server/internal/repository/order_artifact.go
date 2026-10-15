@@ -13,13 +13,13 @@ import (
 type OrderRepo struct{ db dbtx }
 
 const orderCols = `id, user_id, package_id, invoice_number, amount_idr, credits_granted,
-	status, request_id, payment_url, expired_date, paid_at, created_at, updated_at`
+	status, request_id, payment_url, gateway_token, expired_date, paid_at, created_at, updated_at`
 
 func scanOrder(row scannable) (*entity.Order, error) {
 	var o entity.Order
 	if err := row.Scan(&o.ID, &o.UserID, &o.PackageID, &o.InvoiceNumber, &o.AmountIDR,
-		&o.CreditsGranted, &o.Status, &o.RequestID, &o.PaymentURL, &o.ExpiredDate,
-		&o.PaidAt, &o.CreatedAt, &o.UpdatedAt); err != nil {
+		&o.CreditsGranted, &o.Status, &o.RequestID, &o.PaymentURL, &o.GatewayToken,
+		&o.ExpiredDate, &o.PaidAt, &o.CreatedAt, &o.UpdatedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	return &o, nil
@@ -28,11 +28,12 @@ func scanOrder(row scannable) (*entity.Order, error) {
 func (r *OrderRepo) Create(ctx context.Context, o *entity.Order) error {
 	_, err := r.db.Exec(ctx,
 		`insert into orders (id, user_id, package_id, invoice_number, amount_idr,
-		   credits_granted, status, request_id, payment_url, expired_date, paid_at,
-		   created_at, updated_at)
-		 values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		   credits_granted, status, request_id, payment_url, gateway_token, expired_date,
+		   paid_at, created_at, updated_at)
+		 values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
 		o.ID, o.UserID, o.PackageID, o.InvoiceNumber, o.AmountIDR, o.CreditsGranted,
-		o.Status, o.RequestID, o.PaymentURL, o.ExpiredDate, o.PaidAt, o.CreatedAt, o.UpdatedAt)
+		o.Status, o.RequestID, o.PaymentURL, o.GatewayToken, o.ExpiredDate,
+		o.PaidAt, o.CreatedAt, o.UpdatedAt)
 	return mapErr(err)
 }
 
@@ -48,13 +49,13 @@ func (r *OrderRepo) GetByRequestID(ctx context.Context, reqID string) (*entity.O
 	return scanOrder(r.db.QueryRow(ctx, `select `+orderCols+` from orders where request_id=$1`, reqID))
 }
 
-// Update menulis ulang kolom yang Diedit usecase (payment_url, expired_date).
-// Transisi status settlement/expire TIDAK lewat sini: lewat LedgerRepo agar
-// selalu guard WHERE status='pending'.
+// Update menulis ulang kolom yang Diedit usecase (payment_url, gateway_token,
+// expired_date). Transisi status settlement/expire TIDAK lewat sini: lewat
+// LedgerRepo agar selalu guard WHERE status='pending'.
 func (r *OrderRepo) Update(ctx context.Context, o *entity.Order) error {
 	tag, err := r.db.Exec(ctx,
-		`update orders set payment_url=$2, expired_date=$3, updated_at=$4 where id=$1`,
-		o.ID, o.PaymentURL, o.ExpiredDate, time.Now())
+		`update orders set payment_url=$2, gateway_token=$3, expired_date=$4, updated_at=$5 where id=$1`,
+		o.ID, o.PaymentURL, o.GatewayToken, o.ExpiredDate, time.Now())
 	if err != nil {
 		return mapErr(err)
 	}

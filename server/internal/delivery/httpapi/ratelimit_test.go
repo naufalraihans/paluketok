@@ -84,7 +84,7 @@ func TestRateLimit_429DanJatahPerUser(t *testing.T) {
 
 	// Webhook: tanpa JWT, tidak lewat limiter /v1/ (signature gagal pun tak 429).
 	for i := 0; i < 3; i++ {
-		if c, _ := rlDo(t, srv, http.MethodPost, "/v1/webhooks/doku", ""); c == http.StatusTooManyRequests {
+		if c, _ := rlDo(t, srv, http.MethodPost, "/v1/webhooks/midtrans", ""); c == http.StatusTooManyRequests {
 			t.Fatal("webhook tidak boleh kena rate limit")
 		}
 	}

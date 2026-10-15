@@ -2,7 +2,14 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import type { DashboardContent } from '#lib/mock/dashboard-types';
 
-	let { sidebar }: { sidebar: DashboardContent['sidebar'] } = $props();
+	let {
+		sidebar,
+		onNavigate
+	}: {
+		sidebar: DashboardContent['sidebar'];
+		// Dipakai konsol admin: item menu memilih tab, bukan berpindah halaman.
+		onNavigate?: (label: string) => void;
+	} = $props();
 </script>
 
 <aside
@@ -41,6 +48,12 @@
 					<a
 						class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-100 transition-colors"
 						href={item.href}
+						onclick={(e) => {
+							if (onNavigate) {
+								e.preventDefault();
+								onNavigate(item.label);
+							}
+						}}
 					>
 						<Icon name={item.icon} class="w-4 h-4 text-blue-600 flex-shrink-0" />
 						{item.label}
@@ -49,6 +62,12 @@
 					<a
 						class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
 						href={item.href}
+						onclick={(e) => {
+							if (onNavigate) {
+								e.preventDefault();
+								onNavigate(item.label);
+							}
+						}}
 					>
 						<Icon name={item.icon} class="w-4 h-4 text-slate-400 flex-shrink-0" />
 						{item.label}

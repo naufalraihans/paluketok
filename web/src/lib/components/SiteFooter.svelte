@@ -47,7 +47,8 @@
 			<div class="flex items-center gap-4">
 				{#each footer.legal as link, i (link.label)}
 					{#if i > 0}<span>·</span>{/if}
-					<a class="hover:text-slate-600 transition-colors" href={link.href}>{link.label}</a>
+					<!-- Halaman Privacy/Terms belum ada; label, bukan link mati. -->
+					<span>{link.label}</span>
 				{/each}
 			</div>
 		</div>

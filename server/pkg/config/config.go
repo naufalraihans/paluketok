@@ -24,11 +24,17 @@ type Config struct {
 	// JEVBaseURL override gateway JEV; default https://api.experientiallabs.ai/v1/systemone
 	JEVBaseURL string
 
-	DokuClientID   string
-	DokuSecretKey  string
-	DokuBaseURL    string
-	DokuNotifyPath string
-	DokuIsProd     bool
+	// Midtrans Snap.
+	// ServerKey dari dashboard Midtrans (Settings > Access Keys). Sandbox dan
+	// produksi memakai host berbeda, jadi base URL-nya eksplisit.
+	MidtransServerKey string
+	// MidtransAuthBaseURL dipakai halaman Snap: app.sandbox.midtrans.com
+	// (sandbox) atau app.midtrans.com (produksi).
+	MidtransAuthBaseURL string
+	// MidtransAPIBaseURL dipakai Get Status API: api.sandbox.midtrans.com
+	// (sandbox) atau api.midtrans.com (produksi). Kosong = diturunkan dari
+	// auth base URL dengan mengganti host app. -> api.
+	MidtransAPIBaseURL string
 
 	// JWKS (security.md bagian 2). JWKSURL kosong = <SupabaseURL>/auth/v1/.well-known/jwks.json.
 	JWKSURL string
@@ -43,24 +49,31 @@ func Load(envFile string) (*Config, error) {
 	}
 
 	c := &Config{
-		AppPort:            get("APP_PORT", "8080"),
-		AppEnv:             get("APP_ENV", "development"),
-		JEVBaseURL:         get("JEV_BASE_URL", "https://api.experientiallabs.ai/v1/systemone"),
-		BaseURL:            get("BASE_URL", ""),
-		DatabaseURL:        get("DATABASE_URL", ""),
-		SupabaseURL:        get("SUPABASE_URL", ""),
-		SupabaseServiceKey: get("SUPABASE_SERVICE_ROLE_KEY", ""),
-		JEVAPIKey:          get("JEV_API_KEY", ""),
-		DokuClientID:       get("DOKU_CLIENT_ID", ""),
-		DokuSecretKey:      get("DOKU_SECRET_KEY", ""),
-		DokuBaseURL:        get("DOKU_BASE_URL", "https://api-sandbox.doku.com"),
-		DokuNotifyPath:     get("DOKU_NOTIFICATION_PATH", "/v1/webhooks/doku"),
-		DokuIsProd:         get("DOKU_ENVIRONMENT", "sandbox") == "production",
-		JWKSURL:            get("SUPABASE_JWKS_URL", ""),
+		AppPort:             get("APP_PORT", "8080"),
+		AppEnv:              get("APP_ENV", "development"),
+		JEVBaseURL:          get("JEV_BASE_URL", "https://api.experientiallabs.ai/v1/systemone"),
+		BaseURL:             get("BASE_URL", ""),
+		DatabaseURL:         get("DATABASE_URL", ""),
+		SupabaseURL:         get("SUPABASE_URL", ""),
+		SupabaseServiceKey:  get("SUPABASE_SERVICE_ROLE_KEY", ""),
+		JEVAPIKey:           get("JEV_API_KEY", ""),
+		MidtransServerKey:   get("MIDTRANS_SERVER_KEY", ""),
+		MidtransAuthBaseURL: get("MIDTRANS_AUTH_BASE_URL", "https://app.sandbox.midtrans.com"),
+		MidtransAPIBaseURL:  get("MIDTRANS_API_BASE_URL", ""),
+		JWKSURL:             get("SUPABASE_JWKS_URL", ""),
 	}
 
-	if c.DokuNotifyPath == "" || !strings.HasPrefix(c.DokuNotifyPath, "/") {
-		return nil, fmt.Errorf("DOKU_NOTIFICATION_PATH harus path absolut: %q", c.DokuNotifyPath)
+	if c.MidtransServerKey == "" {
+		return nil, errors.New("MIDTRANS_SERVER_KEY wajib diisi (dashboard Midtrans > Settings > Access Keys)")
+	}
+	// Host Snap tidak boleh tertukar antara sandbox dan produksi: uang nyata
+	// bergantung padanya. Terima hanya dua nilai yang dikenal.
+	switch c.MidtransAuthBaseURL {
+	case "https://app.sandbox.midtrans.com", "https://app.midtrans.com":
+	case "https://app.midtrans.com/", "https://app.sandbox.midtrans.com/":
+		c.MidtransAuthBaseURL = strings.TrimRight(c.MidtransAuthBaseURL, "/")
+	default:
+		return nil, fmt.Errorf("MIDTRANS_AUTH_BASE_URL harus app.sandbox.midtrans.com atau app.midtrans.com: %q", c.MidtransAuthBaseURL)
 	}
 	if _, err := strconv.Atoi(c.AppPort); err != nil {
 		return nil, fmt.Errorf("APP_PORT bukan angka: %q", c.AppPort)

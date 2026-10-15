@@ -1,13 +1,12 @@
 // E2E langkah 29 (workflow.md): alur penuh via HTTP asli ke server httptest:
 // login-JWT -> project -> run sampai done (LLM/JEV mock) -> artifact ->
-// webhook DOKU signature-valid -> regenerate satu tahap. Tanpa service
-// eksternal.
+// webhook Midtrans tervalidasi signature -> regenerate satu tahap. Tanpa
+// service eksternal (Get Status API ditiru fake TransactionVerifier).
 package httpapi
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -58,13 +57,6 @@ func waitFor(t *testing.T, timeout time.Duration, cond func() bool, what string)
 	t.Fatalf("timeout menunggu %s", what)
 }
 
-// dokuSignedBody susun body webhook + headers signature valid (HMAC asli).
-func dokuSignedBody(invoice, bodyReqID string, amount int, txStatus, orderStatus string) (string, map[string]string) {
-	body := fmt.Sprintf(`{"order":{"amount":%d,"invoice_number":%q,"request_id":%q,"status":%q},"transaction":{"status":%q}}`,
-		amount, invoice, bodyReqID, orderStatus, txStatus)
-	return body, dokuSignedHeaders(body, "req-e2e-hdr")
-}
-
 func TestE2E_FullFlow(t *testing.T) {
 	e := newE2E(t)
 	tok := e.fix.token(t, uidE2E)
@@ -112,8 +104,11 @@ func TestE2E_FullFlow(t *testing.T) {
 		t.Fatalf("artifacts kurang: %d", len(list))
 	}
 
-	// 6. Webhook DOKU signature-valid: top-up 50 kredit -> settlement.
-	// Order dibuat dulu (POST /v1/orders).
+	// 6. Webhook Midtrans: top-up 25.000 -> settlement.
+	// Order dibuat dulu (POST /v1/orders). Midtrans mengirim signature_key
+	// yang harus cocok dengan SHA512(order_id+status_code+gross_amount+
+	// ServerKey); di sini ServerKey dipegang memPayment (e2eServerKey). Setelah
+	// itu status terkini dibaca ulang dari memPayment (Get Status API palsu).
 	code, ord := e.do(t, "POST", "/v1/orders", tok, map[string]any{"package_id": "starter"})
 	if code != 201 {
 		t.Fatalf("order: %d %v", code, ord)
@@ -125,11 +120,12 @@ func TestE2E_FullFlow(t *testing.T) {
 	_, me2 := e.do(t, "GET", "/v1/me", tok, nil)
 	before := int(me2["credits"].(float64))
 
-	body, hdrs := dokuSignedBody(inv, "", 25000, "SUCCESS", "")
-	req, _ := http.NewRequest("POST", e.srv.URL+"/v1/webhooks/doku", strings.NewReader(body))
-	for k, v := range hdrs {
-		req.Header.Set(k, v)
-	}
+	// Transaksi yang "ada di Midtrans": kuncinya order_id = invoice kita.
+	e.pay.setTx(inv, 25000, "settlement", true)
+
+	req, _ := http.NewRequest("POST", e.srv.URL+e.notify,
+		bytes.NewReader(e2eNotifBody(inv, "25000.00", "settlement")))
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -137,7 +133,7 @@ func TestE2E_FullFlow(t *testing.T) {
 	rb, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode != 200 {
-		t.Fatalf("webhook: %d %s (hdrs=%v)", resp.StatusCode, rb, hdrs)
+		t.Fatalf("webhook: %d %s", resp.StatusCode, rb)
 	}
 	// Order settlement + saldo naik.
 	_, ord2 := e.do(t, "GET", "/v1/orders/"+oid, tok, nil)

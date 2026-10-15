@@ -45,8 +45,9 @@ func NewRouter(o RouterOptions) http.Handler {
 	// health tanpa auth (workflow.md 7).
 	mux.HandleFunc("GET /healthz", healthz)
 
-	// Webhook DOKU: TANPA JWT, dilindungi signature (security.md bagian 6).
-	mux.HandleFunc("POST /v1/webhooks/doku", o.Handlers.WebhookDOKU)
+	// Webhook Midtrans: TANPA JWT. Keaslian dibuktikan signature SHA512 di body
+	// (lihat webhook.go); tidak ada segmen rahasia di URL.
+	mux.HandleFunc("POST /v1/webhooks/midtrans", o.Handlers.WebhookMidtrans)
 
 	// Grup JWT: semua endpoint user-scoped.
 	authed := http.NewServeMux()

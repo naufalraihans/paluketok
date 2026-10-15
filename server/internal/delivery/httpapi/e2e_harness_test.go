@@ -12,18 +12,15 @@ import (
 	"time"
 
 	"paluketok/server/internal/adapter/judge"
-	"paluketok/server/internal/adapter/payment/doku"
 	"paluketok/server/internal/entity"
 	"paluketok/server/internal/port"
 	"paluketok/server/internal/usecase"
 	"paluketok/server/internal/worker"
 )
 
-// Kredensial sandbox fiktif untuk harness (bukan secret nyata).
-const (
-	dokuClientID = "E2E-CLIENT"
-	dokuSecret   = "e2e-secret-key"
-)
+// Rute notifikasi Midtrans untuk harness. Tidak ada segmen rahasia: keaslian
+// dibuktikan signature SHA512, dan harness memakai ServerKey test (e2eServerKey).
+const e2eWebhookPath = "/v1/webhooks/midtrans"
 
 // memIDs IDGenerator sekuensial (uuid-shaped, lolos entity.ValidID).
 type memIDs struct {
@@ -108,6 +105,7 @@ type e2eEnv struct {
 	clk    *memClock
 	repos  e2eRepos
 	notify string
+	pay    *memPayment
 }
 
 type e2eRepos struct {
@@ -145,15 +143,17 @@ func newE2E(t *testing.T) *e2eEnv {
 	ids := &memIDs{}
 	settings := &memSettings{m: map[string]*port.AISetting{}}
 
-	// Adapter DOKU asli (signature HMAC sungguhan).
-	dokuClient := doku.New("https://api-sandbox.doku.com", dokuClientID, dokuSecret, "/v1/webhooks/doku")
+	// Adapter Midtrans palsu: CreateOrder mengembalikan link Snap, dan
+	// VerifyTransaction meniru GET /v2/{order_id}/status (sumber kebenaran
+	// status transaksi saat webhook diproses).
+	payment := newMemPayment()
 
 	base := usecase.Deps{
 		Profiles: repos.profiles, Projects: repos.projects, Runs: repos.runs,
 		Artifacts: repos.artifacts, Decisions: repos.decisions, Orders: repos.orders,
-		Ledger: repos.ledger, Signature: dokuClient, Notifications: dokuClient,
-		Payment: memPayment{},
-		Clock:   clk, IDs: ids,
+		Ledger: repos.ledger, Verifier: payment, Notifications: payment,
+		Payment: payment, Signatures: payment,
+		Clock: clk, IDs: ids,
 	}
 
 	pipe := worker.New(llmMock, jc, memRunStore{st}, memProjectsSource{st},
@@ -170,17 +170,16 @@ func newE2E(t *testing.T) *e2eEnv {
 	runUC.SetRegenerator(pipe)
 
 	h := &Handlers{
-		Projects:   usecase.NewProjectUsecase(base),
-		Runs:       runUC,
-		Credits:    usecase.NewCreditUsecase(base),
-		Orders:     usecase.NewOrderUsecase(base),
-		Admin:      usecase.NewAdminUsecase(base, settings),
-		Submitter:  pool,
-		NotifyPath: "/v1/webhooks/doku",
+		Projects:  usecase.NewProjectUsecase(base),
+		Runs:      runUC,
+		Credits:   usecase.NewCreditUsecase(base),
+		Orders:    usecase.NewOrderUsecase(base),
+		Admin:     usecase.NewAdminUsecase(base, settings),
+		Submitter: pool,
 	}
 	srv := httptest.NewServer(NewRouter(RouterOptions{Handlers: h, Verifier: fix.verif}))
 	t.Cleanup(srv.Close)
 
 	return &e2eEnv{t: t, srv: srv, store: st, llm: llmMock, fix: fix, pool: pool,
-		clk: clk, repos: repos, notify: "/v1/webhooks/doku"}
+		clk: clk, repos: repos, notify: e2eWebhookPath, pay: payment}
 }

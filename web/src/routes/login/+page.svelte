@@ -10,8 +10,12 @@
 	let err = $state('');
 	let magicSent = $state(false);
 
+	// Tujuan setelah masuk: di subdomain admin -> /admin, di domain utama -> /projects.
+	const home = (): string =>
+		typeof location !== 'undefined' && location.hostname.startsWith('admin.') ? '/admin' : '/projects';
+
 	$effect(() => {
-		if (auth.user && !auth.loading) goto('/projects', { replaceState: true });
+		if (auth.user && !auth.loading) goto(home(), { replaceState: true });
 	});
 
 	async function submit() {
@@ -20,7 +24,7 @@
 		err = '';
 		try {
 			await login(email, password);
-			goto('/projects', { replaceState: true });
+			goto(home(), { replaceState: true });
 		} catch (e) {
 			err = e instanceof Error ? e.message : 'Gagal masuk';
 		} finally {

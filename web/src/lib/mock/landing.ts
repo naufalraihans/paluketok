@@ -25,8 +25,8 @@ export const landing: LandingContent = {
 			{ label: 'Cara kerja', href: '#cara-kerja' },
 			{ label: 'Untuk siapa', href: '#untuk-siapa' }
 		],
-		signIn: { label: 'Masuk', href: '#masuk' },
-		primaryCta: { label: 'Mulai merancang', href: '#mulai' }
+		signIn: { label: 'Masuk', href: '/login' },
+		primaryCta: { label: 'Mulai merancang', href: '/register' }
 	},
 
 	hero: {
@@ -34,8 +34,8 @@ export const landing: LandingContent = {
 		titleAccent: 'Bangun dengan ·benang merah·',
 		subtitle:
 			'Satukan kebutuhan, struktur halaman, prototipe, data, dan proteksi. Supaya setiap keputusan punya alasan—sebelum menjadi kode.',
-		ctaPrimary: { label: 'Mulai rancanganmu', href: '#mulai' },
-		ctaSecondary: { label: 'Jelajahi contoh proyek', href: '#contoh' },
+		ctaPrimary: { label: 'Mulai rancanganmu', href: '/register' },
+		ctaSecondary: { label: 'Jelajahi contoh proyek', href: '/projects' },
 		window: {
 			url: 'paluketok.id / ruang-ramu',
 			status: 'Dalam perencanaan · v0.8',
@@ -309,7 +309,7 @@ export const landing: LandingContent = {
 	finalCta: {
 		heading: 'Rancang dari benang merah.',
 		body: 'Mulai dari kebutuhan, turunkan ke struktur, prototipe, data, dan proteksi. Jangan biarkan konteksnya terpisah.',
-		primary: { label: 'Mulai rancanganmu', href: '#mulai' },
+		primary: { label: 'Mulai rancanganmu', href: '/register' },
 		secondaryLabel: 'Buka contoh proyek Ruang Ramu'
 	},
 
@@ -320,26 +320,26 @@ export const landing: LandingContent = {
 			{
 				title: 'Produk',
 				links: [
-					{ label: 'Dokumen PRD', href: '#' },
-					{ label: 'Sitemap', href: '#' },
-					{ label: 'Prototipe', href: '#' },
-					{ label: 'ERD', href: '#' },
-					{ label: 'Proteksi', href: '#' }
+					{ label: 'Dokumen PRD', href: '/projects' },
+					{ label: 'Sitemap', href: '/projects' },
+					{ label: 'Prototipe', href: '/projects' },
+					{ label: 'ERD', href: '/projects' },
+					{ label: 'Proteksi', href: '/projects' }
 				]
 			},
 			{
 				title: 'Sumber',
 				links: [
-					{ label: 'Cara kerja', href: '#' },
-					{ label: 'Untuk siapa', href: '#' },
-					{ label: 'Contoh proyek', href: '#' }
+					{ label: 'Cara kerja', href: '#cara-kerja' },
+					{ label: 'Untuk siapa', href: '#untuk-siapa' },
+					{ label: 'Contoh proyek', href: '/projects' }
 				]
 			},
 			{
 				title: 'Kontak',
 				links: [
 					{ label: 'hello@paluketok.id', href: 'mailto:hello@paluketok.id' },
-					{ label: 'Dokumentasi & sumber', href: '#' }
+					{ label: 'Dokumentasi & sumber', href: '/projects' }
 				]
 			}
 		],

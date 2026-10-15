@@ -144,7 +144,16 @@
 												{o.status}
 											</span>
 										</td>
-										<td class="px-4 py-3 text-right">
+										<td class="px-4 py-3 text-right whitespace-nowrap">
+											{#if o.status === 'pending' && o.payment_url}
+												<a
+													href={o.payment_url}
+													target="_blank"
+													rel="noopener noreferrer"
+													class="text-xs font-semibold text-[#2563EB] hover:underline transition-all">Bayar</a
+												>
+												<span class="text-slate-300 mx-1.5">·</span>
+											{/if}
 											<button
 												type="button"
 												disabled={checking}
@@ -159,7 +168,7 @@
 					</div>
 					{#if auth.me}
 						<p class="text-xs text-[#64748B]">
-							Kredit di navbar ter-update otomatis setelah webhook DOKU menyampaikan settlement.
+							Kredit di navbar ter-update otomatis setelah Mayar mengabarkan settlement.
 						</p>
 					{/if}
 				{/if}

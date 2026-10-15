@@ -16,11 +16,10 @@
 		<div>
 			<div class="flex items-center justify-between">
 				<h3 class="font-bold text-sm text-[#0F172A]">{thread.title}</h3>
-				<!-- href="#" sengaja: mockup beku menaruh link mati ke halaman keterkaitan (belum ada). -->
-				<!-- svelte-ignore a11y_invalid_attribute -->
-				<a class="text-xs font-semibold text-[#2563EB] hover:underline inline-flex items-center gap-1" href="#">
+				<!-- Halaman keterkaitan belum ada; label, bukan link mati. -->
+				<span class="text-xs font-semibold text-[#2563EB] inline-flex items-center gap-1">
 					{thread.link}
-				</a>
+				</span>
 			</div>
 			<p class="text-xs text-[#64748B] mt-0.5">{thread.subtitle}</p>
 
@@ -99,11 +98,10 @@
 		</div>
 
 		<div class="pt-4 border-t border-[#F1F5F9] mt-4">
-			<!-- href="#" sengaja: mockup beku menaruh link mati ke halaman proteksi (belum ada). -->
-			<!-- svelte-ignore a11y_invalid_attribute -->
-			<a class="text-xs font-semibold text-[#2563EB] hover:underline inline-flex items-center gap-1" href="#">
+			<!-- Halaman proteksi per-tahap belum ada; tampil sebagai label, bukan link mati. -->
+			<span class="text-xs font-semibold text-[#2563EB] inline-flex items-center gap-1">
 				{security.link}
-			</a>
+			</span>
 		</div>
 	</div>
 </section>

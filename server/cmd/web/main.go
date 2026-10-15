@@ -15,7 +15,7 @@ import (
 
 	"paluketok/server/internal/adapter/judge"
 	"paluketok/server/internal/adapter/llm"
-	"paluketok/server/internal/adapter/payment/doku"
+	"paluketok/server/internal/adapter/payment/midtrans"
 	"paluketok/server/internal/delivery/httpapi"
 	"paluketok/server/internal/delivery/middleware"
 	"paluketok/server/internal/entity"
@@ -90,11 +90,9 @@ func newServer(envFile string) (*server, error) {
 
 	// Repozitori dan adapter (Fase 4).
 	repos := repository.New(pool)
-	payment := doku.New(cfg.DokuBaseURL, cfg.DokuClientID, cfg.DokuSecretKey, cfg.DokuNotifyPath)
-	judgeClient := judge.New(cfg.JEVBaseURL, cfg.JEVAPIKey) // jev_ai.md bagian 1; dipakai worker F6
+	payment := midtrans.New(cfg.MidtransAuthBaseURL, cfg.MidtransAPIBaseURL, cfg.MidtransServerKey)
+	judgeClient := judge.New(cfg.JEVBaseURL, cfg.JEVAPIKey) // fallback env; slot "judge" menang bila terisi
 	llmClient := llm.New()                                  // provider per slot dari DB (planner.md 9)
-	_ = judgeClient
-	_ = llmClient
 
 	// ActorisAdmin: dibaca dari profiles oleh handler via repo. Sederhana F5:
 	// isAdmin dibiarkan false; endpoint admin F7 menyusul. (deviasi dicatat.)
@@ -102,19 +100,18 @@ func newServer(envFile string) (*server, error) {
 		Profiles: repos.Profiles, Projects: repos.Projects, Runs: repos.Runs,
 		Artifacts: repos.Artifacts, Decisions: repos.Decisions, Orders: repos.Orders,
 		Ledger:  repos.Ledger,
-		Payment: payment, Signature: payment, Notifications: payment,
+		Payment: payment, Signatures: payment, Verifier: payment, Notifications: payment,
 		// Semua field wajib Deps terisi (panic NewProjectUsecase kalau tidak):
 		Clock: clockReal{}, IDs: idsReal{},
 	}
 
 	runUC := usecase.NewRunUsecase(*apps)
 	h := &httpapi.Handlers{
-		Projects:   usecase.NewProjectUsecase(*apps),
-		Runs:       runUC,
-		Credits:    usecase.NewCreditUsecase(*apps),
-		Orders:     usecase.NewOrderUsecase(*apps),
-		Admin:      usecase.NewAdminUsecase(*apps, repos.AISettings),
-		NotifyPath: cfg.DokuNotifyPath,
+		Projects: usecase.NewProjectUsecase(*apps),
+		Runs:     runUC,
+		Credits:  usecase.NewCreditUsecase(*apps),
+		Orders:   usecase.NewOrderUsecase(*apps),
+		Admin:    usecase.NewAdminUsecase(*apps, repos.AISettings),
 	}
 	verifier := middleware.NewVerifier(cfg.SupabaseURL, cfg.JWKSURL)
 	verifier.IsAdmin = repos.Profiles.IsAdmin // profiles.is_admin (F7)
@@ -126,7 +123,7 @@ func newServer(envFile string) (*server, error) {
 	// Worker planner (Fase 6): pool 4, antrean 20 (security.md 8/11). Start
 	// tanpa worker tetap aman: klaim DB mengosongkan antrean.
 	runAdapter := workerRunAdapter{repos: repos}
-	pipe := worker.New(resolvedLLM{client: llmClient, store: repos.AISettings}, resolvedJudge{client: judgeClient},
+	pipe := worker.New(resolvedLLM{client: llmClient, store: repos.AISettings}, resolvedJudge{client: judgeClient, store: repos.AISettings},
 		runAdapter, repos.Projects, repos.Artifacts, repos.Ledger, repos.Decisions, idsReal{},
 		func() time.Time { return time.Now().UTC() }, logger.Setup(cfg.AppEnv))
 	wp, err := worker.NewPool(pipe, runAdapter, idsReal{}, func() time.Time { return time.Now().UTC() }, logger.Setup(cfg.AppEnv))

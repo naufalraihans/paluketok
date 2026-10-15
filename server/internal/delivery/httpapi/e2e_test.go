@@ -1,9 +1,7 @@
 // E2E ringan Fase 5 (workflow.md 21): server lokal httptest penuh router,
-// usecase dengan fake. Tanpa DOKU/LLM/JEV live; signature DOKU disimulasikan
-// dengan HMAC asli via adapter doku pada server palsu? TIDAK — webhook diuji
-// langsung: signature disetel pakai secret test adapter (unit) DIHTTP handler
-// level gunakan kontrak port dengan fake verifier agar bukti tetap end-to-end
-// di lapisan delivery.
+// usecase dengan fake. Tanpa Midtrans/LLM/JEV live. Lapisan webhook diuji
+// dengan signature Midtrans yang dihitung sungguhan (SHA512) plus verifikasi
+// balik ke Get Status API, supaya bukti tetap end-to-end di lapisan delivery.
 package httpapi
 
 import (
@@ -13,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,40 +22,63 @@ import (
 
 // --- fakes kecil khusus delivery (usecase port) ---
 
-type fakeSignature struct{ valid bool }
-
-func (f *fakeSignature) Verify(in port.WebhookInput) error {
-	if !f.valid {
-		return port.ErrForbidden
-	}
-	return nil
+// fakeVerifier meniru verifikasi balik ke Get Status API Midtrans. payTx =
+// daftar order_id yang "ada di Midtrans"; di luar itu = 404.
+type fakeVerifier struct {
+	payTx map[string]*port.VerifiedTransaction
+	err   error
 }
 
-// parserFunc membungkus fungsi jadi port.NotificationParser.
-type parserFunc func(raw []byte) (*port.Notification, error)
-
-func (f parserFunc) Parse(raw []byte) (*port.Notification, error) { return f(raw) }
-
-// fakeParser meniru parse DOKU: order.amount angka, transaction.status string.
-func fakeParserDOKU(raw []byte) (*port.Notification, error) {
-	var nb struct {
-		Order struct {
-			Amount        int    `json:"amount"`
-			InvoiceNumber string `json:"invoice_number"`
-			RequestID     string `json:"request_id"`
-			Status        string `json:"status"`
-		} `json:"order"`
-		Transaction map[string]any `json:"transaction"`
+func (f *fakeVerifier) VerifyTransaction(_ context.Context, in port.VerifyInput) (*port.VerifiedTransaction, error) {
+	if f.err != nil {
+		return nil, f.err
 	}
-	if err := json.Unmarshal(raw, &nb); err != nil {
+	tx, ok := f.payTx[in.OrderID]
+	if !ok {
+		return nil, port.ErrNotFound
+	}
+	cp := *tx
+	return &cp, nil
+}
+
+// parserMidtrans meniru adapter Midtrans: payload uji dashboard dikenali lewat
+// ErrTestNotification, body tanpa signature_key ditolak ErrValidation.
+type parserMidtrans struct{}
+
+func (parserMidtrans) Parse(raw []byte) (*port.VerifiedNotification, error) {
+	var probe struct {
+		Test *bool `json:"test"`
+	}
+	if err := json.Unmarshal(raw, &probe); err == nil && probe.Test != nil {
+		return nil, port.ErrTestNotification
+	}
+
+	var hb struct {
+		OrderID           string `json:"order_id"`
+		TransactionID     string `json:"transaction_id"`
+		TransactionStatus string `json:"transaction_status"`
+		FraudStatus       string `json:"fraud_status"`
+		StatusCode        string `json:"status_code"`
+		SignatureKey      string `json:"signature_key"`
+		GrossAmount       string `json:"gross_amount"`
+	}
+	if err := json.Unmarshal(raw, &hb); err != nil {
 		return nil, &entity.ErrValidation{Msg: "body webhook rusak"}
 	}
-	n := &port.Notification{InvoiceNumber: nb.Order.InvoiceNumber, RequestID: nb.Order.RequestID,
-		AmountIDR: nb.Order.Amount, OrderStatus: nb.Order.Status}
-	if s, ok := nb.Transaction["status"].(string); ok {
-		n.Transaction = s
+	if hb.OrderID == "" || hb.StatusCode == "" || hb.SignatureKey == "" {
+		return nil, &entity.ErrValidation{Msg: "notifikasi tanpa signature_key"}
 	}
-	return n, nil
+	return &port.VerifiedNotification{
+		OrderID:       hb.OrderID,
+		TransactionID: hb.TransactionID,
+		StatusCode:    hb.StatusCode,
+		GrossAmount:   hb.GrossAmount,
+		Status:        hb.TransactionStatus,
+		FraudStatus:   hb.FraudStatus,
+		Signature:     hb.SignatureKey,
+		Event:         hb.TransactionStatus,
+		RawBody:       raw,
+	}, nil
 }
 
 type fakeOrdersRepo struct {
@@ -129,8 +151,9 @@ func (g *idGen) New() entity.ID {
 	return entity.ID(fmt.Sprintf("0197a23e-0000-7000-8000-%012d", g.n))
 }
 
-// webhookDeps merangkai usecase untuk webhook (order store persist).
-func webhookDeps(store map[entity.ID]*entity.Order, sigValid bool) (*usecase.OrderUsecase, *settleLedger) {
+// webhookDeps merangkai usecase untuk webhook. payTx = transaksi yang "ada di
+// Midtrans"; order_id di luar daftar ini ditolak 404.
+func webhookDeps(store map[entity.ID]*entity.Order, payTx map[string]*port.VerifiedTransaction) (*usecase.OrderUsecase, *settleLedger) {
 	os2 := &orderStore{fakeOrdersRepo: &fakeOrdersRepo{}, store: store}
 	if store == nil {
 		os2 = &orderStore{fakeOrdersRepo: &fakeOrdersRepo{}, store: map[entity.ID]*entity.Order{
@@ -142,41 +165,39 @@ func webhookDeps(store map[entity.ID]*entity.Order, sigValid bool) (*usecase.Ord
 	sl := &settleLedger{}
 	apps := &usecase.Deps{
 		Profiles: emptyProfileRepo{}, Orders: os2, Ledger: sl,
-		Signature: &fakeSignature{valid: sigValid}, Notifications: parserFunc(fakeParserDOKU),
-		Clock: fakeClock{}, IDs: &idGen{},
+		Signatures:    &memPayment{},
+		Verifier:      &fakeVerifier{payTx: payTx},
+		Notifications: parserMidtrans{},
+		Clock:         fakeClock{}, IDs: &idGen{},
 	}
 	return usecase.NewOrderUsecase(*apps), sl
 }
 
-func webhookServer(t *testing.T, store map[entity.ID]*entity.Order, sigValid bool) (*httptest.Server, *settleLedger) {
+func webhookServer(t *testing.T, store map[entity.ID]*entity.Order, payTx map[string]*port.VerifiedTransaction) (*httptest.Server, *settleLedger) {
 	t.Helper()
-	uc, sl := webhookDeps(store, sigValid)
-	h := &Handlers{Orders: uc, NotifyPath: "/v1/webhooks/doku"}
+	uc, sl := webhookDeps(store, payTx)
+	h := &Handlers{Orders: uc}
 	srv := httptest.NewServer(NewRouter(RouterOptions{Handlers: h}))
 	t.Cleanup(srv.Close)
 	return srv, sl
 }
 
-// --- bukti 21a: signature salah = 401, benar = 200, replay 8x konsisten ---
+const ujiWebhookPath = "/v1/webhooks/midtrans"
 
-func TestWebhook_E2E_SignatureDanReplay(t *testing.T) {
-	body := []byte(`{"order":{"invoice_number":"PK-abc","amount":25000},"transaction":{"status":"SUCCESS"}}`)
+// --- bukti 21a: order_id tak ada di Midtrans = 404, yang sah = 200, replay
+// 8x konsisten (idempoten) ---
 
-	bad, _ := webhookServer(t, nil, false)
-	resp, err := http.Post(bad.URL+"/v1/webhooks/doku", "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("signature salah: ingin 401, dapat %d", resp.StatusCode)
+func TestWebhook_E2E_VerifikasiBalikDanReplay(t *testing.T) {
+	paid := map[string]*port.VerifiedTransaction{
+		"PK-abc": {OrderID: "PK-abc", AmountIDR: 25000, Status: "settlement", Paid: true},
 	}
 
-	// Replay 8x dengan store persist: settle tepat sekali, 200 konsisten.
-	good, sl := webhookServer(t, nil, true)
+	// Body dengan signature SAH untuk key test -> diterima.
+	good, sl := webhookServer(t, nil, paid)
 	var lastCode int
 	for i := 0; i < 8; i++ {
-		resp, err := http.Post(good.URL+"/v1/webhooks/doku", "application/json", bytes.NewReader(body))
+		resp, err := http.Post(good.URL+ujiWebhookPath, "application/json",
+			bytes.NewReader(e2eNotifBody("PK-abc", "25000.00", "settlement")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -189,23 +210,112 @@ func TestWebhook_E2E_SignatureDanReplay(t *testing.T) {
 	if sl.settled != 1 {
 		t.Fatalf("settle harus sekali (idempoten), dapat %d", sl.settled)
 	}
-}
 
-// --- bukti 21a-lain: webhook FAILED diabaikan (200) ---
+	// Webhook PALSU (signature karangan, serverKey berbeda) -> 403, tidak
+	// menyentuh order sama sekali.
+	fake, _ := webhookServer(t, nil, paid)
+	badBody := e2eNotifBody("PK-abc", "25000.00", "settlement")
+	badBody = bytes.Replace(badBody, []byte(e2eSign("PK-abc", "200", "25000.00")),
+		[]byte(e2eSignWith("PK-abc", "200", "25000.00", "SB-Mid-server-PENYERANG")), 1)
+	resp, err := http.Post(fake.URL+ujiWebhookPath, "application/json", bytes.NewReader(badBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("signature karangan: ingin 403, dapat %d", resp.StatusCode)
+	}
 
-func TestWebhook_E2E_FAILEDdiabaikan(t *testing.T) {
-	srv, sl := webhookServer(t, nil, true)
-	resp, err := http.Post(srv.URL+"/v1/webhooks/doku", "application/json",
-		bytes.NewReader([]byte(`{"order":{"invoice_number":"PK-abc"},"transaction":{"status":"FAILED"}}`)))
+	// Notifikasi untuk order yang tidak ada di Midtrans -> diabaikan 200, bukan
+	// 404 (404 bikin Midtrans mengulang & dashboard menandai endpoint gagal).
+	missing, _ := webhookServer(t, nil, paid)
+	resp, err = http.Post(missing.URL+ujiWebhookPath, "application/json",
+		bytes.NewReader(e2eNotifBody("PK-karangan", "25000.00", "settlement")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("FAILED harus 200 (diabaikan), dapat %d", resp.StatusCode)
+		t.Fatalf("order karangan: ingin 200 diabaikan, dapat %d", resp.StatusCode)
+	}
+}
+
+// --- bukti 21a-lain: nominal tidak cocok = 422, tidak settle ---
+
+func TestWebhook_E2E_NominalTidakCocok(t *testing.T) {
+	// Midtrans melaporkan 1.000 padahal order 25.000: jangan settle.
+	payTx := map[string]*port.VerifiedTransaction{
+		"PK-abc": {OrderID: "PK-abc", AmountIDR: 1000, Status: "settlement", Paid: true},
+	}
+	srv, sl := webhookServer(t, nil, payTx)
+	resp, err := http.Post(srv.URL+ujiWebhookPath, "application/json",
+		bytes.NewReader(e2eNotifBody("PK-abc", "1000.00", "settlement")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("nominal beda: ingin 422, dapat %d", resp.StatusCode)
 	}
 	if sl.settled != 0 {
-		t.Fatalf("FAILED tidak boleh settle, dapat %d", sl.settled)
+		t.Fatalf("nominal beda tidak boleh settle, dapat %d", sl.settled)
+	}
+}
+
+// --- bukti 21a-lain: body tanpa signature_key ditolak 422 ---
+
+func TestWebhook_E2E_TanpaSignatureDitolak(t *testing.T) {
+	srv, sl := webhookServer(t, nil, map[string]*port.VerifiedTransaction{})
+	resp, err := http.Post(srv.URL+ujiWebhookPath, "application/json",
+		bytes.NewReader([]byte(`{"order_id":"PK-abc","status_code":"200","gross_amount":"25000.00"}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("tanpa signature_key: ingin 422, dapat %d", resp.StatusCode)
+	}
+	if sl.settled != 0 {
+		t.Fatalf("tidak boleh settle, dapat %d", sl.settled)
+	}
+}
+
+// --- bukti: payload UJI dashboard Midtrans dibalas 200, bukan 422 ---
+//
+// Tombol "Test notification URL" di dashboard mengirim {"test": true} tanpa
+// order_id. Sebelum ini endpoint menjawab 422 dan dashboard menandai GAGAL
+// padahal server sehat (terlihat di journalctl prod 2026-10-15 17:06).
+
+func TestWebhook_E2E_PayloadUjiDashboardDibalas200(t *testing.T) {
+	srv, sl := webhookServer(t, nil, map[string]*port.VerifiedTransaction{})
+
+	for _, body := range []string{`{"test": true}`, `{"test":true,"status":"ok"}`} {
+		resp, err := http.Post(srv.URL+ujiWebhookPath, "application/json",
+			bytes.NewReader([]byte(body)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("payload uji %s: ingin 200, dapat %d", body, resp.StatusCode)
+		}
+	}
+	if sl.settled != 0 {
+		t.Fatalf("payload uji tidak boleh menyelesaikan order, dapat %d", sl.settled)
+	}
+}
+
+// Pengenalan payload uji tidak boleh melonggarkan penolakan body sampah.
+func TestWebhook_E2E_TestBukanBoolTetap422(t *testing.T) {
+	srv, _ := webhookServer(t, nil, map[string]*port.VerifiedTransaction{})
+	resp, err := http.Post(srv.URL+ujiWebhookPath, "application/json",
+		bytes.NewReader([]byte(`{"test":"ya"}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf(`{"test":"ya"}: ingin 422, dapat %d`, resp.StatusCode)
 	}
 }
 
@@ -215,10 +325,10 @@ type fakePayment struct{ called int }
 
 func (f *fakePayment) CreateOrder(_ context.Context, req port.PaymentRequest) (*port.PaymentResponse, error) {
 	f.called++
-	return &port.PaymentResponse{PaymentURL: "https://staging.doku.com/checkout/x", ExpiredDate: "20261013130000"}, nil
-}
-func (f *fakePayment) CheckStatus(context.Context, string) (*port.PaymentStatus, error) {
-	return nil, port.ErrUnavailable
+	return &port.PaymentResponse{
+		PaymentURL: "https://app.sandbox.midtrans.com/snap/v2/vtweb/tok-" + req.InvoiceNumber,
+		ExternalID: "tok-" + req.InvoiceNumber,
+	}, nil
 }
 
 func TestOrders_E2E_CreateOrder_PaymentURLTersimpan(t *testing.T) {
@@ -226,11 +336,10 @@ func TestOrders_E2E_CreateOrder_PaymentURLTersimpan(t *testing.T) {
 	pay := &fakePayment{}
 	apps := &usecase.Deps{
 		Profiles: emptyProfileRepo{}, Ledger: &settleLedger{}, Payment: pay,
-		Signature: &fakeSignature{valid: true}, Notifications: parserFunc(fakeParserDOKU),
 		Clock: fakeClock{}, IDs: &idGen{},
 	}
 	apps.Orders = &orderStore{fakeOrdersRepo: &fakeOrdersRepo{byInvoice: map[string]*entity.Order{}}, store: store}
-	h := &Handlers{Orders: usecase.NewOrderUsecase(*apps), NotifyPath: "/v1/webhooks/doku"}
+	h := &Handlers{Orders: usecase.NewOrderUsecase(*apps)}
 	srv := httptest.NewServer(NewRouter(RouterOptions{Handlers: h,
 		ActorFix: entity.Actor{UserID: "0197a23e-1111-7000-8000-00000000000a"}}))
 	defer srv.Close()
@@ -250,14 +359,18 @@ func TestOrders_E2E_CreateOrder_PaymentURLTersimpan(t *testing.T) {
 		InvoiceNumber string `json:"invoice_number"`
 	}
 	_ = json.NewDecoder(resp.Body).Decode(&out)
-	if out.PaymentURL != "https://staging.doku.com/checkout/x" {
+	if !strings.HasPrefix(out.PaymentURL, "https://app.sandbox.midtrans.com/snap/") {
 		t.Fatalf("payment_url tidak tersimpan/terkirim: %q", out.PaymentURL)
 	}
 	if pay.called != 1 {
-		t.Fatalf("DOKU CreateOrder harus tepat 1x, dapat %d", pay.called)
+		t.Fatalf("Midtrans CreateOrder harus tepat 1x, dapat %d", pay.called)
 	}
 	if len(out.InvoiceNumber) > 30 || len(out.InvoiceNumber) < 4 {
 		t.Fatalf("invoice number janggal: %q", out.InvoiceNumber)
+	}
+	// Snap token tersimpan sebagai jejak audit.
+	if o := store[entity.ID(out.OrderID)]; o == nil || o.GatewayToken == nil {
+		t.Fatalf("gateway_token harus tersimpan setelah create")
 	}
 }
 

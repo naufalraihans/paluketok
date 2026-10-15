@@ -12,7 +12,7 @@ func seedProject(t *testing.T, deps Deps, f *fakes, owner entity.ID) *entity.Pro
 	t.Helper()
 	seedProfile(f.profiles, owner, 3)
 	p, err := NewProjectUsecase(deps).CreateProject(context.Background(), entity.Actor{UserID: owner},
-		CreateProjectInput{Name: "proj", Brief: "b", Stack: entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "doku"}})
+		CreateProjectInput{Name: "proj", Brief: "b", Stack: entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "midtrans"}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,23 +1,33 @@
-// Webhook DOKU: POST /v1/webhooks/doku. Tanpa JWT; signature HMAC-SHA256 satu-
-// satunya gerbang (plan/security.md bagian 6). Urutan: body mentah 16 KB ->
-// header lengkap -> verify (hmac.Equal di adapter) -> parse -> usecase.
+// Webhook Midtrans: POST /v1/webhooks/midtrans. Tanpa JWT.
+//
+// Midtrans MENGIRIM signature_key di body:
+//
+//	SHA512(order_id + status_code + gross_amount + ServerKey)
+//
+// ServerKey hanya diketahui Midtrans dan kita, jadi notifikasi palsu tidak bisa
+// dibuat tanpa kunci itu. Verifikasi tanda tangan ada di usecase
+// (OrderUsecase.ProcessWebhook) karena ia membutuhkan urutan yang sama dengan
+// pencarian order dan pencocokan nominal.
+//
+// Rute tidak memakai segmen rahasia: tanda tangan sudah menjadi buktinya, dan
+// URL yang mudah ditebak membuat konfigurasi dashboard Midtrans lebih sederhana.
 package httpapi
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
 	"paluketok/server/internal/port"
-	"paluketok/server/internal/usecase"
 	"paluketok/server/pkg/response"
 )
 
 const webhookMaxBody = 16 << 10 // security.md bagian 6 langkah 1 dan bagian 8
 
-// WebhookDOKU memproses callback DOKU. Selalu balas 2xx cepat untuk kasus
-// yang sudah dikenal (signature valid), 4xx hanya untuk request yang tidak
-// bisa dipercaya ATAU nominal tidak cocok (tolak, plans security.md langkah 7).
-func (h *Handlers) WebhookDOKU(w http.ResponseWriter, r *http.Request) {
+// WebhookMidtrans memproses notifikasi Midtrans. Balas 2xx untuk notifikasi
+// yang sah supaya Midtrans berhenti mengulang; 4xx untuk yang tidak bisa
+// dipercaya, sehingga salah konfigurasi cepat terlihat di dashboard.
+func (h *Handlers) WebhookMidtrans(w http.ResponseWriter, r *http.Request) {
 	raw, err := io.ReadAll(io.LimitReader(r.Body, webhookMaxBody+1))
 	if err != nil {
 		response.JSON(w, http.StatusBadRequest, map[string]any{
@@ -32,28 +42,25 @@ func (h *Handlers) WebhookDOKU(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	in := port.WebhookInput{
-		ClientID:         r.Header.Get("Client-Id"),
-		RequestID:        r.Header.Get("Request-Id"),
-		RequestTimestamp: r.Header.Get("Request-Timestamp"),
-		Signature:        r.Header.Get("Signature"),
-		RequestTarget:    h.NotifyPath,
-		RawBody:          raw,
-	}
-	res, err := h.Orders.ProcessWebhook(r.Context(), in)
+	// Parse dulu: body rusak ditolak 422 sebelum menyentuh order mana pun.
+	notif, err := h.Orders.ParseWebhook(raw)
 	if err != nil {
-		switch err {
-		case usecase.ErrUnauthorized, usecase.ErrNotFound:
-			// signature salah / invoice asing: 401/404 tanpa perubahan data.
-			writeErr(w, r, err)
-		default:
-			writeErr(w, r, err)
+		// Payload uji dari dashboard ({"test":true}) bukan pembayaran: jawab 200
+		// supaya tombol "Test notification URL" hijau, tanpa memproses apa pun.
+		if errors.Is(err, port.ErrTestNotification) {
+			response.JSON(w, http.StatusOK, map[string]any{"received": true, "test": true})
+			return
 		}
+		writeErr(w, r, err)
 		return
 	}
-	// Replay / ignored / settled / expired: 200. DOKU hanya butuh tahu sudah diterima.
+	res, err := h.Orders.ProcessWebhook(r.Context(), *notif)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
 	response.JSON(w, http.StatusOK, map[string]any{
 		"received": true, "settled": res.Settled, "expired": res.Expired,
-		"already_processed": res.AlreadyProcessed,
+		"already_processed": res.AlreadyProcessed, "ignored": res.Ignored,
 	})
 }

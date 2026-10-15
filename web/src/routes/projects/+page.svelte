@@ -44,6 +44,14 @@
 		...dashboard,
 		chip: auth.me ? 'Data live' : dashboard.chip,
 		credits: credits,
+		sidebar: {
+			...dashboard.sidebar,
+			activeProject: projects.length === 1 ? projects[0].name : dashboard.sidebar.activeProject,
+			user: {
+				name: auth.me?.username ?? auth.me?.full_name ?? 'Pengguna',
+				meta: auth.me ? `${auth.me.plan_tier} · ${credits}` : 'memuat…'
+			}
+		},
 		list: { ...dashboard.list, count: `${projects.length} proyek · data live`, cards: projects },
 		metrics,
 		balance: { ...dashboard.balance, value: credValue ?? '0', meta: `Data live · tier ${tier || 'free'}` }
@@ -212,9 +220,14 @@
 				</div>
 			{/if}
 
-			<DashBanners pipeline={content.pipeline} balance={content.balance} />
-			<DashNotice notice={content.notice} />
-			<DashStates states={content.states} />
+			<DashBanners
+				pipeline={content.pipeline}
+				balance={content.balance}
+				onCreate={() => (showCreate = true)}
+			/>
+			{#if !auth.me}
+				<DashNotice notice={content.notice} />
+			{/if}
 		</main>
 	</div>
 </div>

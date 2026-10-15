@@ -13,15 +13,20 @@ import (
 // Deps adalah dependensi bersama semua usecase. Semua lewat port, sehingga
 // usecase bisa dites tanpa DB dan tanpa HTTP (plan/architecture.md bagian 4).
 type Deps struct {
-	Profiles      port.ProfileRepo
-	Projects      port.ProjectRepo
-	Runs          port.RunRepo
-	Artifacts     port.ArtifactRepo
-	Decisions     port.DecisionRepo
-	Orders        port.OrderRepo
-	Ledger        port.LedgerRepo
-	Payment       port.Payment
-	Signature     port.SignatureVerifier
+	Profiles  port.ProfileRepo
+	Projects  port.ProjectRepo
+	Runs      port.RunRepo
+	Artifacts port.ArtifactRepo
+	Decisions port.DecisionRepo
+	Orders    port.OrderRepo
+	Ledger    port.LedgerRepo
+	Payment   port.Payment
+	// Signatures memverifikasi keaslian notifikasi (Midtrans: SHA512 atas
+	// order_id+status_code+gross_amount+ServerKey).
+	Signatures port.SignatureVerifier
+	// Verifier membaca ulang status transaksi ke API gateway. Lapis kedua
+	// setelah signature: memastikan status terkini dan menutup replay.
+	Verifier      port.TransactionVerifier
 	Notifications port.NotificationParser
 	Clock         port.Clock
 	IDs           IDGenerator

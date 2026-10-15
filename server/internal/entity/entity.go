@@ -18,6 +18,9 @@ type ID string
 type Actor struct {
 	UserID  ID
 	IsAdmin bool
+	// Email dipakai untuk mengirim email tagihan ke gateway pembayaran
+	// (Snap meneruskan email ini ke halaman bayar). Boleh kosong.
+	Email string
 }
 
 // PlanTier mengikuti profiles.plan_tier (erd.dbml).
@@ -196,7 +199,7 @@ type Decision struct {
 }
 
 // OrderStatus mengikuti CHECK orders.status (erd.dbml). `deny` dibuang saat
-// pindah ke DOKU.
+// pindah ke gateway pembayaran.
 type OrderStatus string
 
 const (
@@ -206,7 +209,8 @@ const (
 )
 
 // Order adalah baris orders (erd.dbml). Sumber kedaluwarsa adalah expired_date
-// dari respons DOKU, bukan timer sendiri (plan/auth_billing.md bagian 2.4).
+// dari respons gateway (Midtrans Snap), bukan timer sendiri
+// (plan/auth_billing.md bagian 2.4).
 type Order struct {
 	ID             ID
 	UserID         ID
@@ -217,10 +221,14 @@ type Order struct {
 	Status         OrderStatus
 	RequestID      string
 	PaymentURL     *string
-	ExpiredDate    *time.Time
-	PaidAt         *time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// GatewayToken adalah token halaman bayar dari gateway (Midtrans Snap
+	// token), disimpan sebagai jejak audit. Bukan kunci transaksi: Midtrans
+	// memakai invoice_number kita sebagai order_id.
+	GatewayToken *string
+	ExpiredDate  *time.Time
+	PaidAt       *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 // LedgerReason mengikuti CHECK credits_ledger.reason (erd.dbml).

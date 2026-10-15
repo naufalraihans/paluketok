@@ -18,7 +18,7 @@ func TestCreateProject_Sukses(t *testing.T) {
 	p, err := uc.CreateProject(context.Background(), entity.Actor{UserID: userA}, CreateProjectInput{
 		Name:  "  PaluKetok Demo  ",
 		Brief: "Website toko online sederhana",
-		Stack: entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "doku"},
+		Stack: entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "midtrans"},
 	})
 	if err != nil {
 		t.Fatalf("CreateProject gagal: %v", err)

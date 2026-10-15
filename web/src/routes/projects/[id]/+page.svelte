@@ -194,7 +194,7 @@
 	<title>{content.meta.title}</title>
 </svelte:head>
 <div class={content.meta.bodyClass}>
-	<SummarySidebar />
+	<SummarySidebar projectName={name} ready={progress} total={total} />
 
 	<div class="flex-1 flex flex-col h-full overflow-hidden bg-[#F8F9FA]" data-purpose="main-layout">
 		<SummaryTopbar
@@ -242,7 +242,7 @@
 					</div>
 				{/if}
 				{#if runId}
-					<div class="rounded-xl border border-slate-200 bg-white p-6">
+					<div class="rounded-xl border border-slate-200 bg-white p-6" id="tahap">
 						<p class="text-sm font-semibold mb-3">
 							Enam tahap planning
 							<span class="ml-2 text-xs font-normal text-slate-500">

@@ -1,17 +1,16 @@
 <script lang="ts">
-	import SiteNav from '#lib/components/SiteNav.svelte';
-	import SiteFooter from '#lib/components/SiteFooter.svelte';
-	import { landing } from '#lib/mock/landing';
-	import { auth, refreshMe } from '#lib/auth.svelte';
 	import { goto } from '$app/navigation';
+	import { auth, refreshMe } from '#lib/auth.svelte';
+	import DashSidebar from '#lib/components/DashSidebar.svelte';
+	import DashTopbar from '#lib/components/DashTopbar.svelte';
 	import AdminProjects from '#lib/components/admin/AdminProjects.svelte';
 	import AdminRuns from '#lib/components/admin/AdminRuns.svelte';
 	import AdminUsers from '#lib/components/admin/AdminUsers.svelte';
 	import AdminDecisions from '#lib/components/admin/AdminDecisions.svelte';
 	import AdminAI from '#lib/components/admin/AdminAI.svelte';
 
-	// Fase 10 Tahap B: /admin SATU halaman dengan tab (path, bukan subdomain).
-	// Deviasi planner.md:136 dicatat di plan/changelog.md.
+	// Konsol admin. Layout & komponen sidebar/topbar sama persis dengan /projects
+	// (satu desain), isi & menu berbeda: 5 tab operasional, bukan proyek user.
 	type Tab = 'projects' | 'runs' | 'users' | 'decisions' | 'ai';
 	const TABS: { id: Tab; label: string }[] = [
 		{ id: 'projects', label: 'Projects' },
@@ -35,40 +34,74 @@
 			if (!auth.me?.is_admin) goto('/projects', { replaceState: true });
 		});
 	});
+
+	const credits = $derived(auth.me ? `${auth.me.credits} kredit` : '0 kredit');
+
+	// Data sidebar memakai kontrak DashboardContent yang sama dengan /projects,
+	// hanya item menunya yang berbeda (tiap tab = satu entri).
+	const sidebar = $derived({
+		brand: 'PaluKetok',
+		studio: 'Konsol Admin',
+		activeLabel: 'Mode',
+		activeProject: 'Operasional',
+		sectionLabel: 'Menu Admin',
+		items: TABS.map((t, i) => ({
+			label: t.label,
+			icon: ['folder', 'refresh', 'users', 'bolt', 'sliders'][i],
+			href: '#',
+			active: tab === t.id
+		})),
+		user: {
+			name: auth.me?.username ?? auth.me?.full_name ?? 'Admin',
+			meta: auth.me ? `${auth.me.plan_tier} · ${credits}` : 'memuat…'
+		}
+	});
+
+	function pick(label: string): void {
+		const found = TABS.find((t) => t.label === label);
+		if (found) tab = found.id;
+	}
 </script>
 
 <svelte:head><title>Admin · PaluKetok</title></svelte:head>
-<div class="min-h-screen flex flex-col bg-white text-[#0f172a] font-sans antialiased">
-	<SiteNav nav={landing.nav} />
-	<main class="flex-1 w-full max-w-6xl mx-auto px-6 py-8 space-y-6">
-		<header class="flex items-end justify-between gap-4 flex-wrap">
-			<div>
-				<h1 class="text-xl font-bold tracking-tight">Admin</h1>
-				<p class="text-sm text-[#475569] mt-0.5">Konsol operasional. Satu halaman, lima tab.</p>
-			</div>
-			<span class="text-2xs font-medium bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200"
-				>{auth.me?.plan_tier ?? 'free'} · {auth.me?.credits ?? 0} kredit</span
-			>
-		</header>
+<div class="bg-[#fafbfc] text-[#0f172a] font-sans antialiased min-h-screen flex">
+	<!-- Menu sidebar admin memilih tab (DashSidebar onNavigate). -->
+	<DashSidebar {sidebar} onNavigate={pick} />
 
-		<nav class="flex gap-1 border-b border-slate-200 overflow-x-auto" aria-label="Tab admin">
-			{#each TABS as t (t.id)}
-				<button
-					type="button"
-					class="px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors {tab === t.id
-						? 'border-slate-900 text-slate-900'
-						: 'border-transparent text-slate-500 hover:text-slate-900'}"
-					onclick={() => (tab = t.id)}
-					aria-current={tab === t.id ? 'page' : undefined}>{t.label}</button
-				>
-			{/each}
-		</nav>
+	<div class="flex-1 flex flex-col min-w-0">
+		<DashTopbar
+			breadcrumb={{ root: 'Admin', current: TABS.find((t) => t.id === tab)?.label ?? '' }}
+			chip="Data live"
+			{credits}
+			topupLabel="Top-up"
+		/>
 
-		{#if !checked}
-			<p class="text-sm text-[#475569]">Memeriksa hak akses...</p>
-		{:else if auth.me?.is_admin}
-			{#if tab === 'projects'}<AdminProjects />{:else if tab === 'runs'}<AdminRuns />{:else if tab === 'users'}<AdminUsers />{:else if tab === 'decisions'}<AdminDecisions />{:else}<AdminAI />{/if}
-		{/if}
-	</main>
-	<SiteFooter footer={landing.footer} />
+		<main class="flex-1 p-6 lg:p-8 space-y-6 max-w-[1360px] mx-auto w-full">
+			{#if !checked}
+				<div class="rounded-xl border border-blue-200 bg-blue-50 p-6 text-sm text-blue-700">
+					Memeriksa hak akses…
+				</div>
+			{:else if !auth.me?.is_admin}
+				<div class="rounded-xl border border-rose-200 bg-rose-50 p-6 space-y-2">
+					<p class="text-sm font-semibold text-rose-700">Akses ditolak</p>
+					<p class="text-sm text-rose-600">Akun ini bukan admin.</p>
+				</div>
+			{:else}
+				<nav class="flex gap-1 border-b border-slate-200 overflow-x-auto" aria-label="Tab admin">
+					{#each TABS as t (t.id)}
+						<button
+							type="button"
+							class="px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors {tab === t.id
+								? 'border-slate-900 text-slate-900'
+								: 'border-transparent text-slate-500 hover:text-slate-900'}"
+							onclick={() => (tab = t.id)}
+							aria-current={tab === t.id ? 'page' : undefined}>{t.label}</button
+						>
+					{/each}
+				</nav>
+
+				{#if tab === 'projects'}<AdminProjects />{:else if tab === 'runs'}<AdminRuns />{:else if tab === 'users'}<AdminUsers />{:else if tab === 'decisions'}<AdminDecisions />{:else}<AdminAI />{/if}
+			{/if}
+		</main>
+	</div>
 </div>

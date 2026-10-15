@@ -38,11 +38,10 @@
 				{/each}
 			</div>
 			<div>
-				<!-- href="#" sengaja: mockup beku menaruh link mati ke halaman aktivitas (belum ada). -->
-				<!-- svelte-ignore a11y_invalid_attribute -->
-				<a class="text-xs font-semibold text-[#2563EB] hover:underline inline-flex items-center gap-1" href="#">
+				<!-- Halaman aktivitas belum ada; label, bukan link mati. -->
+				<span class="text-xs font-semibold text-[#2563EB] inline-flex items-center gap-1">
 					{review.feedLink}
-				</a>
+				</span>
 			</div>
 		</div>
 	</div>

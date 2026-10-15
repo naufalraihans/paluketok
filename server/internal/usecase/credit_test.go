@@ -110,7 +110,7 @@ func TestRefundRun_SekaliSaja(t *testing.T) {
 	deps, _, f := newTestCore()
 	seedProfile(f.profiles, userA, 1)
 	uc := NewRunUsecase(deps)
-	proj, err := NewProjectUsecase(deps).CreateProject(context.Background(), entity.Actor{UserID: userA}, CreateProjectInput{Name: "p", Brief: "b", Stack: entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "doku"}})
+	proj, err := NewProjectUsecase(deps).CreateProject(context.Background(), entity.Actor{UserID: userA}, CreateProjectInput{Name: "p", Brief: "b", Stack: entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "midtrans"}})
 	if err != nil {
 		t.Fatal(err)
 	}

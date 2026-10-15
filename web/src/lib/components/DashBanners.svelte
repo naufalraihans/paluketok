@@ -1,12 +1,15 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import type { DashboardContent } from '#lib/mock/dashboard-types';
 
 	let {
 		pipeline,
-		balance
+		balance,
+		onCreate
 	}: {
 		pipeline: DashboardContent['pipeline'];
 		balance: DashboardContent['balance'];
+		onCreate: () => void;
 	} = $props();
 </script>
 
@@ -25,6 +28,7 @@
 			<button
 				class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
 				type="button"
+				onclick={onCreate}
 			>
 				{pipeline.action}
 			</button>
@@ -42,6 +46,7 @@
 			<button
 				class="w-full text-center text-xs font-semibold px-4 py-2 rounded-lg border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors"
 				type="button"
+				onclick={() => goto('/billing')}
 			>
 				{balance.action}
 			</button>

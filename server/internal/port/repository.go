@@ -125,6 +125,8 @@ type DecisionRepo interface {
 type OrderRepo interface {
 	Create(ctx context.Context, o *entity.Order) error
 	GetByID(ctx context.Context, id entity.ID) (*entity.Order, error)
+	// GetByInvoiceNumber mencari order lewat invoice_number, yang bagi Midtrans
+	// adalah order_id transaksi. Ini kunci pencarian webhook.
 	GetByInvoiceNumber(ctx context.Context, invoiceNumber string) (*entity.Order, error)
 	GetByRequestID(ctx context.Context, requestID string) (*entity.Order, error)
 	Update(ctx context.Context, o *entity.Order) error

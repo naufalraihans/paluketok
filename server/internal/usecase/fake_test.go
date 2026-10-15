@@ -2,6 +2,9 @@ package usecase
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
@@ -448,6 +451,8 @@ func (r *fakeOrderRepo) GetByRequestID(_ context.Context, reqID string) (*entity
 	return nil, port.ErrNotFound
 }
 
+// fakeOrderRepo: orders disimpan per ID; pemanggil mengisi byID.
+
 func (r *fakeOrderRepo) Update(_ context.Context, o *entity.Order) error {
 	if _, ok := r.byID[o.ID]; !ok {
 		return port.ErrNotFound
@@ -457,46 +462,128 @@ func (r *fakeOrderRepo) Update(_ context.Context, o *entity.Order) error {
 	return nil
 }
 
-// fakePayment, fakeSignature, fakeParser untuk DOKU (13b-13d).
+// fakePayment, fakeVerifier, fakeSigner, fakeParser (13b-13d).
+//
+// Midtrans mengirim signature SHA512; fakeSigner menirunya, dan fakeVerifier
+// (Get Status API) jadi lapis kedua sebelum settlement diputuskan.
 type fakePayment struct {
-	resp     *port.PaymentResponse
-	err      error
-	lastReq  port.PaymentRequest
-	statuses map[string]*port.PaymentStatus
+	resp    *port.PaymentResponse
+	err     error
+	lastReq port.PaymentRequest
+	calls   int
 }
 
 func (f *fakePayment) CreateOrder(_ context.Context, req port.PaymentRequest) (*port.PaymentResponse, error) {
+	f.calls++
 	f.lastReq = req
 	return f.resp, f.err
 }
 
-func (f *fakePayment) CheckStatus(_ context.Context, inv string) (*port.PaymentStatus, error) {
-	if f.statuses == nil {
-		return nil, port.ErrUnavailable
-	}
-	s, ok := f.statuses[inv]
-	if !ok {
-		return nil, port.ErrNotFound
-	}
-	return s, nil
-}
-
-type fakeSignature struct {
+// fakeVerifier meniru GET /v2/{order_id}/status: order tak terdaftar = 404.
+type fakeVerifier struct {
+	tx  map[string]*port.VerifiedTransaction
 	err error
+	// ops mencatat panggilan supaya tes bisa memastikan verifikasi benar-benar
+	// dilakukan (bukan sekadar mempercayai body webhook).
 	ops []string
 }
 
-func (f *fakeSignature) Verify(_ port.WebhookInput) error {
-	f.ops = append(f.ops, "verify")
-	return f.err
+func (f *fakeVerifier) VerifyTransaction(_ context.Context, in port.VerifyInput) (*port.VerifiedTransaction, error) {
+	f.ops = append(f.ops, "verify:"+in.OrderID)
+	if f.err != nil {
+		return nil, f.err
+	}
+	tx, ok := f.tx[in.OrderID]
+	if !ok {
+		return nil, port.ErrNotFound
+	}
+	cp := *tx
+	return &cp, nil
 }
 
+// fakeSigner meniru port.SignatureVerifier Midtrans. Signature dihitung dengan
+// rumus yang sama seperti adapter asli: SHA512(order_id+status_code+gross+key).
+type fakeSigner struct {
+	// serverKey yang dipegang peniru; signature di luar nilai ini ditolak.
+	serverKey string
+	err       error
+	ops       []string
+}
+
+func (f *fakeSigner) VerifySignature(in port.SignatureInput) error {
+	f.ops = append(f.ops, "sig:"+in.OrderID)
+	if f.err != nil {
+		return f.err
+	}
+	if sha512Hex(in.OrderID+in.StatusCode+in.GrossAmt+f.serverKey) != in.Signature {
+		return port.ErrForbidden
+	}
+	return nil
+}
+
+// signBody menyusun notifikasi Midtrans dengan signature sah untuk key ini.
+func (f *fakeSigner) signBody(orderID, gross, status string) []byte {
+	const code = "200"
+	b, _ := json.Marshal(map[string]any{
+		"order_id":           orderID,
+		"transaction_id":     "tx-" + orderID,
+		"transaction_status": status,
+		"status_code":        code,
+		"gross_amount":       gross,
+		"signature_key":      sha512Hex(orderID + code + gross + f.serverKey),
+	})
+	return b
+}
+
+func sha512Hex(s string) string {
+	sum := sha512.Sum512([]byte(s))
+	return hex.EncodeToString(sum[:])
+}
+
+// fakeParser meniru adapter Midtrans: field penting dibaca, body tanpa
+// signature_key ditolak.
 type fakeParser struct {
-	out *port.Notification
+	out *port.VerifiedNotification
 	err error
 }
 
-func (f *fakeParser) Parse(_ []byte) (*port.Notification, error) { return f.out, f.err }
+func (f *fakeParser) Parse(raw []byte) (*port.VerifiedNotification, error) {
+	if f.out != nil || f.err != nil {
+		return f.out, f.err
+	}
+	return midtransStyleParse(raw)
+}
+
+// midtransStyleParse adalah Parse minimal bergaya adapter Midtrans, dipakai
+// saat tes ingin mengurai body nyata (bukan output yang sudah disiapkan).
+func midtransStyleParse(raw []byte) (*port.VerifiedNotification, error) {
+	var hb struct {
+		OrderID           string `json:"order_id"`
+		TransactionID     string `json:"transaction_id"`
+		TransactionStatus string `json:"transaction_status"`
+		FraudStatus       string `json:"fraud_status"`
+		StatusCode        string `json:"status_code"`
+		SignatureKey      string `json:"signature_key"`
+		GrossAmount       string `json:"gross_amount"`
+	}
+	if err := json.Unmarshal(raw, &hb); err != nil {
+		return nil, &entity.ErrValidation{Msg: "body webhook rusak"}
+	}
+	if hb.OrderID == "" || hb.StatusCode == "" || hb.SignatureKey == "" {
+		return nil, &entity.ErrValidation{Msg: "notifikasi tanpa signature_key"}
+	}
+	return &port.VerifiedNotification{
+		OrderID:       hb.OrderID,
+		TransactionID: hb.TransactionID,
+		StatusCode:    hb.StatusCode,
+		GrossAmount:   hb.GrossAmount,
+		Status:        hb.TransactionStatus,
+		FraudStatus:   hb.FraudStatus,
+		Signature:     hb.SignatureKey,
+		Event:         hb.TransactionStatus,
+		RawBody:       raw,
+	}, nil
+}
 
 // fakes mengumpulkan semua fake supaya tes bisa memeriksa efek samping.
 type fakes struct {
@@ -508,7 +595,8 @@ type fakes struct {
 	artifacts *fakeArtifactRepo
 	decisions *fakeDecisionRepo
 	payment   *fakePayment
-	signature *fakeSignature
+	verifier  *fakeVerifier
+	signer    *fakeSigner
 	parser    *fakeParser
 }
 
@@ -529,8 +617,9 @@ func newTestCore() (Deps, *fakeClock, *fakes) {
 		orders:    orders,
 		artifacts: newFakeArtifacts(),
 		decisions: &fakeDecisionRepo{},
-		payment:   &fakePayment{resp: &port.PaymentResponse{PaymentURL: "https://pay.doku/x", ExpiredDate: "20261014100000"}},
-		signature: &fakeSignature{},
+		payment:   &fakePayment{resp: &port.PaymentResponse{PaymentURL: "https://app.sandbox.midtrans.com/snap/v2/vtweb/tok-x", ExternalID: "tok-x"}},
+		verifier:  &fakeVerifier{tx: map[string]*port.VerifiedTransaction{}},
+		signer:    &fakeSigner{serverKey: testServerKey},
 		parser:    &fakeParser{},
 	}
 	deps := Deps{
@@ -542,13 +631,17 @@ func newTestCore() (Deps, *fakeClock, *fakes) {
 		Orders:        f.orders,
 		Ledger:        ledger,
 		Payment:       f.payment,
-		Signature:     f.signature,
+		Signatures:    f.signer,
+		Verifier:      f.verifier,
 		Notifications: f.parser,
 		Clock:         clock,
 		IDs:           &seqIDs{},
 	}
 	return deps, clock, f
 }
+
+// testServerKey = ServerKey palsu yang dipegang fakeSigner pada tes usecase.
+const testServerKey = "SB-Mid-server-uji-usecase"
 
 // newTestDeps dipertahankan untuk tes lama (project_test.go).
 func newTestDeps() (Deps, *fakeClock, *fakeProfileRepo, *fakeProjectRepo, *fakeRunRepo, *fakeLedgerRepo) {

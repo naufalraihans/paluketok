@@ -22,7 +22,7 @@
 			</a>
 			<a
 				class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-xl font-medium text-sm text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all shadow-subtle"
-				href="#contoh"
+				href="/projects"
 			>
 				{finalCta.secondaryLabel}
 			</a>

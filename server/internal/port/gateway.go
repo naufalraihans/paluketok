@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"time"
 )
 
 // LLMMessage adalah satu pesan untuk client OpenAI-compatible.
@@ -78,7 +79,9 @@ type Judge interface {
 	Decide(ctx context.Context, req JudgeRequest) (*JudgeResponse, error)
 }
 
-// LineItem adalah satu baris tagihan ke DOKU.
+// LineItem adalah satu baris tagihan. Midtrans menerima item_details, tapi
+// bentuknya (id/price/quantity/name) berbeda dari struct ini, jadi adapter yang
+// menerjemahkan.
 type LineItem struct {
 	Name     string
 	Price    int
@@ -86,68 +89,107 @@ type LineItem struct {
 }
 
 // PaymentRequest adalah permintaan membuat halaman bayar.
+//
+// Description, Email, dan ExpiresAt ditambahkan saat migrasi ke gateway
+// Ringkasan item masuk Description; email dipakai Midtrans untuk
+// mengirim bukti bayar.
 type PaymentRequest struct {
 	InvoiceNumber string
 	RequestID     string
 	AmountIDR     int
 	Items         []LineItem
+	Description   string // judul tagihan yang dilihat pembeli
+	Email         string
+	ExpiresAt     time.Time // zero = biarkan gateway memakai defaultnya
 }
 
-// PaymentResponse berisi halaman bayar dan sumber kedaluwarsa dari DOKU
-// (plan/auth_billing.md bagian 2.3-2.4).
+// PaymentResponse berisi halaman bayar dari gateway.
+//
+// Midtrans Snap membalas {token, redirect_url}: PaymentURL = redirect_url (halaman
+// bayar Midtrans langsung, tak perlu halaman bayar sendiri), ExternalID = token.
+// TransactionID kosong karena Midtrans memakai order_id KITA sebagai kunci
+// transaksi — tidak ada id transaksi tambahan yang perlu disimpan.
 type PaymentResponse struct {
-	PaymentURL  string
-	ExpiredDate string // format yyyyMMddHHmmss UTC+7, apa adanya dari DOKU
-	Raw         []byte
-}
-
-// PaymentStatus adalah hasil cek status ke DOKU.
-type PaymentStatus struct {
-	InvoiceNumber string
-	Transaction   string // SUCCESS | FAILED | ...
-	OrderStatus   string // ORDER_EXPIRED | ORDER_RECOVERED | ...
-	AmountIDR     int
+	PaymentURL    string
+	ExternalID    string // Midtrans: Snap token
+	TransactionID string // kosong untuk Midtrans (kunci = order_id kita)
 	Raw           []byte
 }
 
-// Payment adalah client DOKU Checkout. Timeout 20 detik, tanpa auto-retry
+// Payment adalah client gateway pembayaran. Timeout 20 detik, tanpa auto-retry
 // (plan/security.md bagian 6).
 type Payment interface {
 	CreateOrder(ctx context.Context, req PaymentRequest) (*PaymentResponse, error)
-	CheckStatus(ctx context.Context, invoiceNumber string) (*PaymentStatus, error)
 }
 
-// WebhookInput adalah notifikasi DOKU yang sudah dibaca mentah. Body mentah
-// wajib dipakai apa adanya untuk Digest (plan/security.md bagian 6 langkah 1).
-type WebhookInput struct {
-	ClientID         string
-	RequestID        string
-	RequestTimestamp string
-	Signature        string
-	RequestTarget    string
-	RawBody          []byte
+// VerifyInput menunjuk transaksi yang harus dibaca ulang dari gateway.
+type VerifyInput struct {
+	// OrderID adalah order_id yang kita kirim saat create (invoice_number).
+	// Midtrans memakai nilai ini sebagai kunci transaksi.
+	OrderID string
+	// TransactionID opsional: alternatif pencarian lewat id transaksi Midtrans.
+	TransactionID string
 }
 
-// SignatureVerifier memverifikasi signature HMAC-SHA256 notifikasi DOKU
-// (plan/security.md bagian 6 langkah 2-5).
-type SignatureVerifier interface {
-	Verify(in WebhookInput) error
-}
-
-// Notification adalah isi notifikasi DOKU setelah parse. Status pesanan dan
-// status transaksi DIPISAH karena kedaluwarsa ada di order.status, bukan
-// transaction.status (plan/security.md bagian 6 langkah 9).
-type Notification struct {
-	InvoiceNumber string
-	RequestID     string
+// VerifiedTransaction adalah kebenaran dari gateway, bukan dari webhook.
+type VerifiedTransaction struct {
+	OrderID       string // = invoice_number kita
+	TransactionID string // id transaksi Midtrans (uuid)
 	AmountIDR     int
-	Transaction   string // SUCCESS | FAILED | ...
-	OrderStatus   string // ORDER_EXPIRED | ORDER_RECOVERED | ...
+	Status        string // Midtrans: capture | settlement | pending | deny | cancel | expire | failure | refund
+	Method        string // Midtrans: payment_type, mis. bank_transfer / qris / credit_card
+	MerchantID    string
+	Paid          bool // settlement, atau capture yang lolos fraud check
+	FraudStatus   string
+	ExpiresAt     *time.Time
+	Raw           []byte
 }
 
-// NotificationParser mem-parse body notifikasi DOKU.
+// TransactionVerifier membaca ulang transaksi dari gateway memakai kredensial
+// server. Lapis kedua setelah signature: walau signature sudah membuktikan
+// notifikasi asli dari gateway, pembacaan ulang memastikan status TERKINI dan
+// mencegah replay notifikasi lama.
+type TransactionVerifier interface {
+	VerifyTransaction(ctx context.Context, in VerifyInput) (*VerifiedTransaction, error)
+}
+
+// SignatureInput adalah data yang dibutuhkan untuk memverifikasi keaslian
+// notifikasi. Midtrans menandatangani: SHA512(order_id + status_code +
+// gross_amount + ServerKey).
+type SignatureInput struct {
+	OrderID    string
+	StatusCode string
+	GrossAmt   string
+	Signature  string
+	RawBody    []byte
+}
+
+// SignatureVerifier memverifikasi tanda tangan notifikasi gateway. Midtrans
+// menyediakannya, jadi ini gerbang pertama; TransactionVerifier jadi gerbang
+// kedua.
+type SignatureVerifier interface {
+	VerifySignature(in SignatureInput) error
+}
+
+// VerifiedNotification adalah notifikasi yang sudah dibaca dari body. Isinya
+// BELUM terbukti — pemanggil wajib memverifikasi Signature lewat
+// SignatureVerifier sebelum mempercayai OrderID/Status/GrossAmount.
+type VerifiedNotification struct {
+	OrderID       string // = invoice_number kita
+	TransactionID string
+	StatusCode    string
+	GrossAmount   string
+	Status        string // transaction_status
+	FraudStatus   string
+	Signature     string // signature_key dari body, untuk SignatureVerifier
+	Event         string // nama status, untuk pencatatan
+	RawBody       []byte
+}
+
+// NotificationParser mem-parse body notifikasi menjadi VerifiedNotification.
+// Parse TIDAK memverifikasi apa pun — verifikasi dilakukan SignatureVerifier.
 type NotificationParser interface {
-	Parse(raw []byte) (*Notification, error)
+	Parse(raw []byte) (*VerifiedNotification, error)
 }
 
 // Jenis error adapter yang harus dikenali usecase. Adapter membungkus error
@@ -166,6 +208,10 @@ var (
 	ErrForbidden = errKind("forbidden")
 	// ErrValidation dipetakan ke 422.
 	ErrValidation = errKind("validation")
+	// ErrTestNotification menandai payload UJI dari dashboard gateway (bukan
+	// pembayaran). Handler menjawab 200 supaya tombol "Test notification URL"
+	// lolos, tanpa memproses apa pun.
+	ErrTestNotification = errKind("test notification")
 )
 
 type errKind string

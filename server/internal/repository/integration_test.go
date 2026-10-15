@@ -95,7 +95,7 @@ func mustProject(t *testing.T, repos *Repos, now time.Time) *entity.Project {
 	id := entity.ID("a4f40000-0000-4000-8000-00000000c001") // harus UUID valid
 	p := &entity.Project{
 		ID: id, OwnerID: testUserA, Name: "uji-f4", Brief: "project uji integration",
-		Stack:  entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "doku"},
+		Stack:  entity.Stack{FE: "svelte", BE: "go", DB: "supabase", Payment: "midtrans"},
 		Status: entity.ProjectDraft, CreatedAt: now, UpdatedAt: now,
 	}
 	if err := repos.Projects.Create(context.Background(), p); err != nil {
@@ -409,7 +409,7 @@ func TestIntegration_ProfileDanProjectCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get project: %v", err)
 	}
-	if gotP.Stack.FE != "svelte" || gotP.Stack.Payment != "doku" {
+	if gotP.Stack.FE != "svelte" || gotP.Stack.Payment != "midtrans" {
 		t.Fatalf("stack jsonb salah: %+v", gotP.Stack)
 	}
 	list, err := repos.Projects.ListByOwner(context.Background(), testUserA, port.Page{Limit: 10})

@@ -7,6 +7,11 @@
 
 	// Fase 10 revisi: /login dan /register halaman nyata. Sesi tampil di nav:
 	// username + kredit (GET /v1/me), link admin hanya kalau is_admin.
+	// Admin ada di subdomain terpisah; di subdomain itu sendiri pakai path relatif.
+	const adminUrl = ((): string =>
+		typeof location !== 'undefined' && location.hostname.startsWith('admin.')
+			? '/admin'
+			: 'https://admin.paluketok.web.id/admin')();
 </script>
 
 <header
@@ -31,7 +36,7 @@
 				<a class="hover:text-slate-900 transition-colors" href={link.href}>{link.label}</a>
 			{/each}
 			{#if auth.me?.is_admin}
-				<a class="hover:text-slate-900 transition-colors" href="/admin">Admin</a>
+				<a class="hover:text-slate-900 transition-colors" href={adminUrl}>Admin</a>
 			{/if}
 		</nav>
 		<!-- Right Action CTAs -->

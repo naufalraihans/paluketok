@@ -149,7 +149,7 @@
 				<span>{feature.footerStrip}</span>
 				<a
 					class="text-brand-600 font-semibold hover:underline inline-flex items-center gap-1"
-					href="#contoh"
+					href="/projects"
 				>
 					{feature.footerCta} <span>↗</span>
 				</a>

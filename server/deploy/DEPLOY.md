@@ -30,7 +30,7 @@ sudo chmod 0755 /opt/paluketok/paluketok
 sudo chown -R paluketok:paluketok /opt/paluketok
 
 # env: isi manual, JANGAN dari repo (secret hanya server/.env Master)
-sudo nano /etc/paluketok/.env          # SUPABASE_*, DOKU_*, DATABASE_URL, APP_PORT, dst.
+sudo nano /etc/paluketok/.env          # SUPABASE_*, MIDTRANS_*, DATABASE_URL, APP_PORT, dst.
 sudo chown root:paluketok /etc/paluketok/.env
 sudo chmod 0640 /etc/paluketok/.env
 
