@@ -18,6 +18,9 @@ concurrency:
 env:
   VPS_HOST: ${{ secrets.VPS_HOST }}
   VPS_USER: ${{ secrets.VPS_USER }}
+  # SSH publik VPS ini di balik NAT penyedia: 103.119.237.29:20257 -> VPS:22.
+  # Port 22 publik milik gateway bersama, bukan mesin ini.
+  VPS_PORT: ${{ secrets.VPS_PORT }}
 
 jobs:
   deploy:
@@ -74,27 +77,28 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # keyscan butuh -p juga: tanpa itu yang dipindai gateway port 22.
+          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       # Diagnostik: cetak sidik jari saja (bukan kunci), supaya jelas apakah
       # isi secret utuh. Sidik jari harus sama dengan di authorized_keys VPS.
       - name: Periksa kunci (sidik jari)
         run: |
-          echo "host=$VPS_HOST user=$VPS_USER"
+          echo "host=$VPS_HOST user=$VPS_USER port=$VPS_PORT"
           ssh-keygen -lf ~/.ssh/id_ed25519 || echo "KUNCI TAK TERBACA"
-          ssh -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" 'echo SSH_OK; whoami' \
-            || echo "SSH GAGAL"
+          ssh -p "$VPS_PORT" -o BatchMode=yes -o ConnectTimeout=10 \
+            "$VPS_USER@$VPS_HOST" 'echo SSH_OK; whoami' || echo "SSH GAGAL"
 
       - name: Kirim binary + FE
         working-directory: web
         run: |
-          scp /tmp/paluketok            "$VPS_USER@$VPS_HOST:/tmp/paluketok.new"
+          scp -P "$VPS_PORT" /tmp/paluketok "$VPS_USER@$VPS_HOST:/tmp/paluketok.new"
           tar -C build -czf /tmp/web.tgz .
-          scp /tmp/web.tgz              "$VPS_USER@$VPS_HOST:/tmp/web.tgz"
+          scp -P "$VPS_PORT" /tmp/web.tgz "$VPS_USER@$VPS_HOST:/tmp/web.tgz"
 
       - name: Pasang + restart
         run: |
-          ssh "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
 
           # Simpan yang lama supaya bisa dikembalikan kalau healthz gagal.
