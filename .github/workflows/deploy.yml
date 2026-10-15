@@ -72,9 +72,18 @@ jobs:
       - name: Siapkan kunci SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # Diagnostik: cetak sidik jari saja (bukan kunci), supaya jelas apakah
+      # isi secret utuh. Sidik jari harus sama dengan di authorized_keys VPS.
+      - name: Periksa kunci (sidik jari)
+        run: |
+          echo "host=$VPS_HOST user=$VPS_USER"
+          ssh-keygen -lf ~/.ssh/id_ed25519 || echo "KUNCI TAK TERBACA"
+          ssh -o BatchMode=yes -o ConnectTimeout=10 "$VPS_USER@$VPS_HOST" 'echo SSH_OK; whoami' \
+            || echo "SSH GAGAL"
 
       - name: Kirim binary + FE
         working-directory: web
