@@ -117,6 +117,12 @@ func (p *adminProjects) Update(_ context.Context, _ *entity.Project) error { ret
 func (p *adminProjects) Archive(_ context.Context, _ entity.ID, _ entity.ID, _ time.Time) error {
 	return nil
 }
+func (p *adminProjects) GetBySlug(_ context.Context, _ entity.ID, _ string) (*entity.Project, error) {
+	return nil, port.ErrNotFound
+}
+func (p *adminProjects) SlugTaken(_ context.Context, _ entity.ID, _ string) (bool, error) {
+	return false, nil
+}
 
 type adminRuns struct{ list []entity.PlanRun }
 

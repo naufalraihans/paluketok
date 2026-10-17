@@ -28,6 +28,8 @@ export type ProjectStatus = 'ready' | 'draft' | 'archived';
 export type ProjectCard = {
 	/** UUID proyek dari API; kartu mock boleh kosong. */
 	id?: string;
+	/** Slug URL proyek (enak dibaca); UUID dipakai bila kosong. */
+	slug?: string;
 	name: string;
 	brief: string;
 	stack: string;
@@ -65,6 +67,8 @@ export type DashboardContent = {
 		studio: string;
 		activeLabel: string;
 		activeProject: string;
+		/** Dipakai halaman proyek: daftar proyek untuk sidebar. slug = URL resmi. */
+		projects?: { id: string; name: string; slug?: string }[];
 		sectionLabel: string;
 		items: DashNavItem[];
 		user: { name: string; meta: string };

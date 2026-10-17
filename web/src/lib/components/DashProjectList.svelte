@@ -48,7 +48,9 @@
 							class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer"
 							type="button"
 							onclick={() => {
-								const target = card.id ?? card.name.toLowerCase().replace(/\s+/g, '-');
+								// URL proyek memakai slug (enak dibaca). UUID hanya
+								// cadangan bila proyek lama belum punya slug.
+								const target = card.slug ?? card.id ?? card.name.toLowerCase().replace(/\s+/g, '-');
 								window.location.href = `/projects/${target}`;
 							}}
 						>

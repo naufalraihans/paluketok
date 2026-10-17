@@ -76,6 +76,11 @@ type Project struct {
 	Brief     string
 	Stack     Stack
 	Status    ProjectStatus
+	// Slug: bagian URL proyek yang enak dibaca (/projects/testing-jembut).
+	// Unik per owner; beku sejak dibuat sehingga tautan yang dibagikan tidak
+	// mati walau nama proyek diubah. Boleh kosong pada baris lama (migrasi
+	// 0005 mengisinya; sisa kosong disajikan lewat UUID).
+	Slug      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -154,6 +159,23 @@ type Artifact struct {
 	Status    ArtifactStatus
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+// ProjectMessage adalah baris project_messages: satu pesan percakapan
+// perancangan milik satu proyek. Hanya 'user' dan 'assistant' yang sah —
+// instruksi 'system' datang dari server (worker/prompt.go), bukan dari klien.
+type ProjectMessage struct {
+	ID        ID
+	ProjectID ID
+	UserID    ID
+	Role      string
+	Content   string
+	// SuggestedStage usul tahap berikutnya dari model; kosong bila tidak ada.
+	SuggestedStage string
+	Model          string
+	TokensIn       int
+	TokensOut      int
+	CreatedAt      time.Time
 }
 
 // ArtifactVersion adalah baris artifact_versions (erd.dbml). created_by_run_id

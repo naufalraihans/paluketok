@@ -47,6 +47,16 @@
 		sidebar: {
 			...dashboard.sidebar,
 			activeProject: projects.length === 1 ? projects[0].name : dashboard.sidebar.activeProject,
+			// Hanya menu yang halamannya BENAR-BENAR ada. Menu tahap (PRD, ERD,
+			// dst.) hidup di dalam /projects/{slug}; daftarnya sudah ada di sana
+			// dan muncul bertahap mengikuti artefak. Menaruhnya di sini dulu
+			// membuat 8 tautan yang semuanya menunjuk /projects — bisa dipencet
+			// tapi tidak ke mana-mana.
+			items: dashboard.sidebar.items.filter((i) => i.href !== '/projects'),
+			// Kartu mock tidak punya id; hanya proyek nyata yang bisa dipilih.
+			projects: projects
+				.filter((p): p is ProjectCard & { id: string } => Boolean(p.id))
+				.map((p) => ({ id: p.id, name: p.name, slug: p.slug })),
 			user: {
 				name: auth.me?.username ?? auth.me?.full_name ?? 'Pengguna',
 				meta: auth.me ? `${auth.me.plan_tier} · ${credits}` : 'memuat…'
@@ -64,6 +74,7 @@
 			const [{ projects: ps }] = await Promise.all([listProjects(), refreshMe()]);
 			projects = ps.map((p) => ({
 				id: p.id,
+				slug: p.slug,
 				name: p.name,
 				brief: p.brief,
 				stack:

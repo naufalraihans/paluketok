@@ -23,6 +23,8 @@ type Handlers struct {
 	Credits  *usecase.CreditUsecase
 	Orders   *usecase.OrderUsecase
 	Admin    *usecase.AdminUsecase
+	// Chat: percakapan perancangan per proyek (Fase 4).
+	Chat *usecase.ChatUsecase
 
 	// SubmitOp antrean worker (Fase 6); nil di test worker-less.
 	Submitter Submitter
@@ -110,6 +112,19 @@ func pathID(w http.ResponseWriter, r *http.Request, name string) (entity.ID, boo
 		return "", false
 	}
 	return entity.ID(v), true
+}
+
+// pathRef menerima UUID ATAU slug dari URL. Dipakai rute proyek yang harus
+// menerima dua bentuk: UUID (tautan lama) dan slug (tautan ramah baca).
+func pathRef(w http.ResponseWriter, r *http.Request, name string) (string, bool) {
+	v := r.PathValue(name)
+	if v == "" {
+		response.JSON(w, http.StatusNotFound, map[string]any{
+			"error": response.ErrorBody{Code: response.CodeNotFound, Message: "tidak ditemukan"},
+		})
+		return "", false
+	}
+	return v, true
 }
 
 func actorFrom(r *http.Request) entity.Actor {
@@ -208,11 +223,11 @@ func (h *Handlers) ListProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) GetProject(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r, "id")
+	ref, ok := pathRef(w, r, "id")
 	if !ok {
 		return
 	}
-	p, err := h.Projects.GetProject(r.Context(), actorFrom(r), id)
+	p, err := h.Projects.GetProject(r.Context(), actorFrom(r), ref)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -221,12 +236,17 @@ func (h *Handlers) GetProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) UpdateProject(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r, "id")
+	ref, ok := pathRef(w, r, "id")
 	if !ok {
 		return
 	}
 	var in projectIn
 	if !decodeJSON(w, r, &in) {
+		return
+	}
+	id, err := h.Projects.ResolveProjectID(r.Context(), actorFrom(r), ref)
+	if err != nil {
+		writeErr(w, r, err)
 		return
 	}
 	p, err := h.Projects.UpdateProject(r.Context(), actorFrom(r), id, usecase.UpdateProjectInput{
@@ -240,8 +260,13 @@ func (h *Handlers) UpdateProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) ArchiveProject(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r, "id")
+	ref, ok := pathRef(w, r, "id")
 	if !ok {
+		return
+	}
+	id, err := h.Projects.ResolveProjectID(r.Context(), actorFrom(r), ref)
+	if err != nil {
+		writeErr(w, r, err)
 		return
 	}
 	if err := h.Projects.ArchiveProject(r.Context(), actorFrom(r), id); err != nil {
@@ -259,6 +284,7 @@ func projectDTO(p *entity.Project) map[string]any {
 		"brief":      p.Brief,
 		"stack":      p.Stack,
 		"status":     p.Status,
+		"slug":       p.Slug,
 		"created_at": p.CreatedAt,
 		"updated_at": p.UpdatedAt,
 	}
@@ -267,8 +293,14 @@ func projectDTO(p *entity.Project) map[string]any {
 // --- runs ---
 
 func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
-	id, ok := pathID(w, r, "id")
+	ref, ok := pathRef(w, r, "id")
 	if !ok {
+		return
+	}
+	// URL proyek boleh berbentuk slug; run tetap disimpan dengan UUID proyek.
+	id, err := h.Projects.ResolveProjectID(r.Context(), actorFrom(r), ref)
+	if err != nil {
+		writeErr(w, r, err)
 		return
 	}
 	run, err := h.Runs.CreateRun(r.Context(), actorFrom(r), id)
@@ -318,6 +350,98 @@ func (h *Handlers) ListRunArtifacts(w http.ResponseWriter, r *http.Request) {
 		out = append(out, artifactDTO(&as[i]))
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"artifacts": out})
+}
+
+// ListProjectArtifacts: POST-sidebar progresif (docs/rencana-chat-planning.md B.4).
+// Artefak terbaru per kind untuk satu project, tanpa perlu run id dari klien.
+func (h *Handlers) ListProjectArtifacts(w http.ResponseWriter, r *http.Request) {
+	ref, ok := pathRef(w, r, "id")
+	if !ok {
+		return
+	}
+	as, err := h.Projects.ListProjectArtifacts(r.Context(), actorFrom(r), ref)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	out := make([]map[string]any, 0, len(as))
+	for i := range as {
+		d := artifactDTO(&as[i])
+		// Sidebar tidak butuh isi lengkap; jangan kirim konten ke daftar.
+		delete(d, "content")
+		out = append(out, d)
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"artifacts": out})
+}
+
+// --- chat konteks proyek (Fase 4) ---
+
+func messageDTO(m *entity.ProjectMessage) map[string]any {
+	d := map[string]any{
+		"id":         m.ID,
+		"project_id": m.ProjectID,
+		"role":       m.Role,
+		"content":    m.Content,
+		"created_at": m.CreatedAt,
+	}
+	// Kosong -> tidak dikirim, supaya klien tidak perlu menebak null.
+	if m.SuggestedStage != "" {
+		d["suggested_stage"] = m.SuggestedStage
+	}
+	if m.Model != "" {
+		d["model"] = m.Model
+	}
+	if m.TokensIn > 0 || m.TokensOut > 0 {
+		d["usage"] = map[string]any{"input_tokens": m.TokensIn, "output_tokens": m.TokensOut}
+	}
+	return d
+}
+
+// SendMessage (POST /v1/projects/{id}/messages). Chat GRATIS: tidak ada
+// potongan kredit dan tidak ada baris credits_ledger.
+func (h *Handlers) SendMessage(w http.ResponseWriter, r *http.Request) {
+	if h.Chat == nil {
+		writeErr(w, r, usecase.ErrUnavailable)
+		return
+	}
+	ref, ok := pathRef(w, r, "id")
+	if !ok {
+		return
+	}
+	var body struct {
+		Content string `json:"content"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	m, err := h.Chat.SendMessage(r.Context(), actorFrom(r), ref, body.Content)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, messageDTO(m))
+}
+
+// ListMessages (GET /v1/projects/{id}/messages): riwayat percakapan urut waktu.
+func (h *Handlers) ListMessages(w http.ResponseWriter, r *http.Request) {
+	if h.Chat == nil {
+		writeErr(w, r, usecase.ErrUnavailable)
+		return
+	}
+	ref, ok := pathRef(w, r, "id")
+	if !ok {
+		return
+	}
+	ms, err := h.Chat.ListMessages(r.Context(), actorFrom(r), ref)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	out := make([]map[string]any, 0, len(ms))
+	for i := range ms {
+		out = append(out, messageDTO(&ms[i]))
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"messages": out})
 }
 
 var stages = []entity.Stage{entity.StagePRD, entity.StageERD, entity.StageOpenAPI,

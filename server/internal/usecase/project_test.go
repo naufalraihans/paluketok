@@ -94,23 +94,27 @@ func TestGetProject_OwnerCheck(t *testing.T) {
 	}
 
 	// pemilik: boleh
-	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userA}, p.ID); err != nil {
+	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userA}, string(p.ID)); err != nil {
 		t.Fatalf("pemilik harus boleh, dapat %v", err)
 	}
 	// user lain: 403, bukan 404
-	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userB}, p.ID); !errors.Is(err, ErrForbidden) {
+	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userB}, string(p.ID)); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("user lain harus ErrForbidden, dapat %v", err)
 	}
 	// admin: boleh baca semua (plan/roles.md)
-	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: admin, IsAdmin: true}, p.ID); err != nil {
+	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: admin, IsAdmin: true}, string(p.ID)); err != nil {
 		t.Fatalf("admin harus boleh, dapat %v", err)
 	}
-	// id bukan UUID: 404 tanpa query (plan/security.md bagian 4)
+	// slug yang tidak ada: 404 (dicari lewat slug lalu riwayat slug)
 	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userA}, "bukan-uuid"); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("id non-UUID harus ErrNotFound, dapat %v", err)
+		t.Fatalf("slug tak ada harus ErrNotFound, dapat %v", err)
+	}
+	// bentuk acak yang bukan UUID dan bukan slug: 404 tanpa query
+	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userA}, "!!!"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("ref tak sah harus ErrNotFound, dapat %v", err)
 	}
 	// UUID tidak ada: 404
-	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userA}, entity.ID("99999999-9999-4999-8999-999999999999")); !errors.Is(err, ErrNotFound) {
+	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userA}, "99999999-9999-4999-8999-999999999999"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("id tak ada harus ErrNotFound, dapat %v", err)
 	}
 }

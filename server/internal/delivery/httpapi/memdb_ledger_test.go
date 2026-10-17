@@ -37,6 +37,27 @@ func (m memArtifacts) ListByRun(_ context.Context, runID entity.ID) ([]entity.Ar
 	return out, nil
 }
 
+func (m memArtifacts) ListLatestByProject(_ context.Context, projectID entity.ID) ([]entity.Artifact, error) {
+	m.s.mu.Lock()
+	defer m.s.mu.Unlock()
+	latest := map[entity.Stage]entity.Artifact{}
+	for _, a := range m.s.artifacts {
+		run, ok := m.s.runs[a.RunID]
+		if !ok || run.ProjectID != projectID {
+			continue
+		}
+		// created_at terbaru menang (meniru distinct on (kind) order by desc).
+		if prev, ok := latest[a.Kind]; !ok || a.CreatedAt.After(prev.CreatedAt) {
+			latest[a.Kind] = *a
+		}
+	}
+	out := make([]entity.Artifact, 0, len(latest))
+	for _, a := range latest {
+		out = append(out, a)
+	}
+	return out, nil
+}
+
 func (m memArtifacts) Update(_ context.Context, a *entity.Artifact) error {
 	m.s.mu.Lock()
 	defer m.s.mu.Unlock()

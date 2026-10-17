@@ -96,6 +96,31 @@ func (r *fakeProjectRepo) ListByOwner(_ context.Context, ownerID entity.ID, page
 	return out, nil
 }
 
+// --- slug (URL ramah baca) ---
+
+func (r *fakeProjectRepo) GetBySlug(_ context.Context, ownerID entity.ID, slug string) (*entity.Project, error) {
+	for _, p := range r.byID {
+		if p.Slug == "" || p.Slug != slug {
+			continue
+		}
+		if ownerID != "" && p.OwnerID != ownerID {
+			continue
+		}
+		cp := *p
+		return &cp, nil
+	}
+	return nil, port.ErrNotFound
+}
+
+func (r *fakeProjectRepo) SlugTaken(_ context.Context, ownerID entity.ID, slug string) (bool, error) {
+	for _, p := range r.byID {
+		if p.OwnerID == ownerID && p.Slug == slug {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (r *fakeProjectRepo) Update(_ context.Context, p *entity.Project) error {
 	if _, ok := r.byID[p.ID]; !ok {
 		return port.ErrNotFound
@@ -302,14 +327,17 @@ func (l *fakeLedgerRepo) RefundCharge(_ context.Context, userID entity.ID, charg
 	return nil
 }
 
-// fakeArtifactRepo menyimpan artifacts dan versions.
+// fakeArtifactRepo menyimpan artifacts dan versions. runs dipakai
+// ListLatestByProject untuk menelusuri run_id -> project_id (entity.Artifact
+// tidak menyimpan project_id; kolomnya di plan_runs).
 type fakeArtifactRepo struct {
 	byID     map[entity.ID]*entity.Artifact
 	versions []entity.ArtifactVersion
+	runs     *fakeRunRepo
 }
 
-func newFakeArtifacts() *fakeArtifactRepo {
-	return &fakeArtifactRepo{byID: map[entity.ID]*entity.Artifact{}}
+func newFakeArtifacts(runs *fakeRunRepo) *fakeArtifactRepo {
+	return &fakeArtifactRepo{byID: map[entity.ID]*entity.Artifact{}, runs: runs}
 }
 
 func (r *fakeArtifactRepo) GetByID(_ context.Context, id entity.ID) (*entity.Artifact, error) {
@@ -327,6 +355,28 @@ func (r *fakeArtifactRepo) ListByRun(_ context.Context, runID entity.ID) ([]enti
 		if a.RunID == runID {
 			out = append(out, *a)
 		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Kind < out[j].Kind })
+	return out, nil
+}
+
+func (r *fakeArtifactRepo) ListLatestByProject(_ context.Context, projectID entity.ID) ([]entity.Artifact, error) {
+	latest := map[entity.Stage]entity.Artifact{}
+	for _, a := range r.byID {
+		if r.runs == nil {
+			continue
+		}
+		run, ok := r.runs.byID[a.RunID]
+		if !ok || run.ProjectID != projectID {
+			continue
+		}
+		if prev, ok := latest[a.Kind]; !ok || a.CreatedAt.After(prev.CreatedAt) {
+			latest[a.Kind] = *a
+		}
+	}
+	out := make([]entity.Artifact, 0, len(latest))
+	for _, a := range latest {
+		out = append(out, a)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Kind < out[j].Kind })
 	return out, nil
@@ -615,7 +665,7 @@ func newTestCore() (Deps, *fakeClock, *fakes) {
 		runs:      runs,
 		ledger:    ledger,
 		orders:    orders,
-		artifacts: newFakeArtifacts(),
+		artifacts: newFakeArtifacts(runs),
 		decisions: &fakeDecisionRepo{},
 		payment:   &fakePayment{resp: &port.PaymentResponse{PaymentURL: "https://app.sandbox.midtrans.com/snap/v2/vtweb/tok-x", ExternalID: "tok-x"}},
 		verifier:  &fakeVerifier{tx: map[string]*port.VerifiedTransaction{}},

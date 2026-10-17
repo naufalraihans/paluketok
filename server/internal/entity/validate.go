@@ -16,6 +16,8 @@ const (
 	MaxBriefLen      = 8000
 	MaxStackValueLen = 32
 	MaxPackageIDLen  = 32
+	SlugMinLen       = 1
+	SlugMaxLen       = 60
 )
 
 // uuidRe memvalidasi bentuk UUID sebelum query (plan/security.md bagian 4:
@@ -71,6 +73,45 @@ func NormalizeName(raw string) (string, error) {
 		}
 	}
 	return name, nil
+}
+
+// SlugRe bentuk slug yang boleh masuk URL: huruf kecil, angka, tanda hubung.
+var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
+// ValidSlug true bila s berbentuk slug yang sah (bukan UUID, bukan kosong).
+func ValidSlug(s string) bool {
+	return len(s) >= SlugMinLen && len(s) <= SlugMaxLen && slugRe.MatchString(s)
+}
+
+// Slugify mengubah nama proyek menjadi slug untuk URL: huruf kecil, spasi dan
+// tanda baca menjadi tanda hubung. Dipakai agar URL proyek enak dibaca
+// (/projects/testing-jembut) alih-alih UUID.
+//
+// Hasil bisa KOSONG bila nama hanya berisi tanda baca (mis. "***"); pemanggil
+// menggantinya dengan "proyek". Keunikan per-owner ditangani usecase dengan
+// menambahkan akhiran -2, -3, ... (lihat ProjectUsecase.uniqueSlug).
+func Slugify(name string) string {
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(name) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+			dash = false
+		default:
+			// Huruf non-ASCII (mis. é, 中) tidak bisa masuk URL tanpa encoding;
+			// perlakukan sebagai pemisah agar slug selalu ASCII murni.
+			if !dash && b.Len() > 0 {
+				b.WriteByte('-')
+				dash = true
+			}
+		}
+	}
+	s := strings.Trim(b.String(), "-")
+	if len(s) > SlugMaxLen {
+		s = strings.Trim(s[:SlugMaxLen], "-")
+	}
+	return s
 }
 
 // ValidateBrief memvalidasi projects.brief: 1-8000 karakter (erd.dbml CHECK).

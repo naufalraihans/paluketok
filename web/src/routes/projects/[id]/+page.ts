@@ -1,9 +1,8 @@
 /**
- * adapter-static: SvelteKit butuh minimal satu entry per rute dinamis saat
- * build. Rute ini butuh sesi/token (client-side), jadi entries mengembalikan
- * satu id placeholder semata untuk memuaskan generator — halaman asli selalu
- * render client-side dengan data /v1 (lihat +page.svelte).
+ * Rute dinamis /projects/[id]: id-nya berasal dari API saat runtime, tak
+ * diketahui saat build. Karena itu jangan diprerender — SvelteKit akan
+ * menghasilkan satu file HTML per entry, dan id asli tak punya file sehingga
+ * nginx jatuh ke /index.html (landing page). Dengan prerender=false, rute ini
+ * dilayani SPA fallback 200.html dan render sepenuhnya di klien.
  */
-export const entries = () => [{ id: '00000000-0000-0000-0000-000000000000' }];
-
-export const prerender = true;
+export const prerender = false;

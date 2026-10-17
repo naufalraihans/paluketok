@@ -116,6 +116,7 @@ type e2eRepos struct {
 	decisions memDecisions
 	orders    memOrders
 	ledger    memLedger
+	messages  memMessages
 }
 
 func discardLog() *slog.Logger {
@@ -137,7 +138,7 @@ func newE2E(t *testing.T) *e2eEnv {
 	repos := e2eRepos{
 		profiles: memProfiles{st}, projects: memProjects{st}, runs: memRuns{st},
 		artifacts: memArtifacts{st}, decisions: memDecisions{st},
-		orders: memOrders{st}, ledger: memLedger{st},
+		orders: memOrders{st}, ledger: memLedger{st}, messages: memMessages{st},
 	}
 	clk := newMemClock()
 	ids := &memIDs{}
@@ -153,6 +154,8 @@ func newE2E(t *testing.T) *e2eEnv {
 		Artifacts: repos.artifacts, Decisions: repos.decisions, Orders: repos.orders,
 		Ledger: repos.ledger, Verifier: payment, Notifications: payment,
 		Payment: payment, Signatures: payment,
+		// Chat konteks proyek: pakai LLM palsu yang sama dengan worker.
+		Messages: repos.messages, LLM: llmMock,
 		Clock: clk, IDs: ids,
 	}
 
@@ -169,12 +172,16 @@ func newE2E(t *testing.T) *e2eEnv {
 	runUC := usecase.NewRunUsecase(base)
 	runUC.SetRegenerator(pipe)
 
+	projUC := usecase.NewProjectUsecase(base)
+	chatUC := usecase.NewChatUsecase(base)
+	chatUC.SetResolver(projUC)
 	h := &Handlers{
-		Projects:  usecase.NewProjectUsecase(base),
+		Projects:  projUC,
 		Runs:      runUC,
 		Credits:   usecase.NewCreditUsecase(base),
 		Orders:    usecase.NewOrderUsecase(base),
 		Admin:     usecase.NewAdminUsecase(base, settings),
+		Chat:      chatUC,
 		Submitter: pool,
 	}
 	srv := httptest.NewServer(NewRouter(RouterOptions{Handlers: h, Verifier: fix.verif}))

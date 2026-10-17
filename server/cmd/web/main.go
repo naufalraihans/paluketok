@@ -101,17 +101,28 @@ func newServer(envFile string) (*server, error) {
 		Artifacts: repos.Artifacts, Decisions: repos.Decisions, Orders: repos.Orders,
 		Ledger:  repos.Ledger,
 		Payment: payment, Signatures: payment, Verifier: payment, Notifications: payment,
+		// Chat konteks proyek memakai slot `planner` yang sama dengan worker.
+		// resolvedLLM membaca ulang ai_settings per panggilan, jadi ganti key
+		// dari admin berlaku tanpa restart.
+		Messages: repos.Messages,
+		LLM:      resolvedLLM{client: llmClient, store: repos.AISettings},
 		// Semua field wajib Deps terisi (panic NewProjectUsecase kalau tidak):
 		Clock: clockReal{}, IDs: idsReal{},
 	}
 
 	runUC := usecase.NewRunUsecase(*apps)
+	projUC := usecase.NewProjectUsecase(*apps)
+	// Chat resolusi proyek lewat jalur yang sama dengan endpoint proyek:
+	// satu aturan 403-vs-404 dan satu penerjemah slug.
+	chatUC := usecase.NewChatUsecase(*apps)
+	chatUC.SetResolver(projUC)
 	h := &httpapi.Handlers{
-		Projects: usecase.NewProjectUsecase(*apps),
+		Projects: projUC,
 		Runs:     runUC,
 		Credits:  usecase.NewCreditUsecase(*apps),
 		Orders:   usecase.NewOrderUsecase(*apps),
 		Admin:    usecase.NewAdminUsecase(*apps, repos.AISettings),
+		Chat:     chatUC,
 	}
 	verifier := middleware.NewVerifier(cfg.SupabaseURL, cfg.JWKSURL)
 	verifier.IsAdmin = repos.Profiles.IsAdmin // profiles.is_admin (F7)

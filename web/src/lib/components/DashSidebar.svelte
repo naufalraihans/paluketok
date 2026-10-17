@@ -33,11 +33,32 @@
 			>
 			<div
 				class="flex items-center justify-between px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-100/80 transition-colors"
+				data-purpose="project-switcher"
 			>
 				<span class="text-xs font-semibold text-slate-800 truncate">{sidebar.activeProject}</span>
 				<Icon name="chevron-up-down" class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
 			</div>
 		</div>
+
+		{#if sidebar.projects && sidebar.projects.length > 1}
+			<nav class="space-y-1 mb-6" data-purpose="sidebar-projects">
+				<span class="block text-3xs font-bold text-slate-400 tracking-wider uppercase mb-2 px-1.5"
+					>Proyek</span
+				>
+				{#each sidebar.projects as p (p.id)}
+					<a
+						class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs truncate transition-colors {p.name ===
+						sidebar.activeProject
+							? 'font-semibold bg-slate-100 text-slate-900'
+							: 'font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-50'}"
+						href="/projects/{p.slug ?? p.id}"
+					>
+						<Icon name="folder" class="w-4 h-4 text-slate-400 flex-shrink-0" />
+						<span class="truncate">{p.name}</span>
+					</a>
+				{/each}
+			</nav>
+		{/if}
 
 		<nav class="space-y-1" data-purpose="sidebar-menu">
 			<span class="block text-3xs font-bold text-slate-400 tracking-wider uppercase mb-2 px-1.5"

@@ -3,12 +3,20 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"paluketok/server/internal/entity"
 	"paluketok/server/internal/port"
 )
+
+// ProjectResolver menerjemahkan ref (UUID atau slug) jadi proyek milik actor.
+// Diisi usecase chat dengan ProjectUsecase; dipisah sebagai interface supaya
+// usecase tidak saling memanggil struct satu sama lain.
+type ProjectResolver interface {
+	Resolve(ctx context.Context, actor entity.Actor, ref string) (*entity.Project, error)
+}
 
 // Deps adalah dependensi bersama semua usecase. Semua lewat port, sehingga
 // usecase bisa dites tanpa DB dan tanpa HTTP (plan/architecture.md bagian 4).
@@ -21,6 +29,11 @@ type Deps struct {
 	Orders    port.OrderRepo
 	Ledger    port.LedgerRepo
 	Payment   port.Payment
+	// Messages: percakapan perancangan per proyek (Fase 4).
+	Messages port.MessageRepo
+	// LLM dipakai chat konteks proyek. Worker punya jalur sendiri; usecase
+	// memakai port yang sama supaya slot `planner` tetap satu sumber.
+	LLM port.LLM
 	// Signatures memverifikasi keaslian notifikasi (Midtrans: SHA512 atas
 	// order_id+status_code+gross_amount+ServerKey).
 	Signatures port.SignatureVerifier

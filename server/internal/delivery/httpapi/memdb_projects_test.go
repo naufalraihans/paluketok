@@ -114,3 +114,32 @@ func (m memProjects) Archive(_ context.Context, id, owner entity.ID, _ time.Time
 	p.Status = entity.ProjectArchived
 	return nil
 }
+
+// --- slug (URL ramah baca) ---
+
+func (m memProjects) GetBySlug(_ context.Context, owner entity.ID, slug string) (*entity.Project, error) {
+	m.s.mu.Lock()
+	defer m.s.mu.Unlock()
+	for _, p := range m.s.projects {
+		if p.Slug == "" || p.Slug != slug {
+			continue
+		}
+		if owner != "" && p.OwnerID != owner {
+			continue
+		}
+		cp := *p
+		return &cp, nil
+	}
+	return nil, port.ErrNotFound
+}
+
+func (m memProjects) SlugTaken(_ context.Context, owner entity.ID, slug string) (bool, error) {
+	m.s.mu.Lock()
+	defer m.s.mu.Unlock()
+	for _, p := range m.s.projects {
+		if p.OwnerID == owner && p.Slug == slug {
+			return true, nil
+		}
+	}
+	return false, nil
+}

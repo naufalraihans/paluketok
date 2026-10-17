@@ -12,6 +12,11 @@
 		typeof location !== 'undefined' && location.hostname.startsWith('admin.')
 			? '/admin'
 			: 'https://admin.paluketok.web.id/admin')();
+
+	// Anchor (#produk) hanya berarti di landing. Di halaman lain, tautan
+	// dipulangkan ke "/#..." supaya tidak jadi tautan mati.
+	const isLanding = ((): boolean =>
+		typeof location !== 'undefined' ? location.pathname === '/' : true)();
 </script>
 
 <header
@@ -33,7 +38,16 @@
 		<!-- Center Navigation Links -->
 		<nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
 			{#each nav.links as link (link.href)}
-				<a class="hover:text-slate-900 transition-colors" href={link.href}>{link.label}</a>
+				{#if link.href.startsWith('/')}
+					<a class="hover:text-slate-900 transition-colors" href={link.href}>{link.label}</a>
+				{:else}
+					<!-- Anchor hanya hidup di landing; dari /projects atau /billing
+					     dipulangkan dulu ke "/" supaya tak jadi tautan mati. -->
+					<a
+						class="hover:text-slate-900 transition-colors"
+						href={isLanding ? link.href : `/${link.href}`}>{link.label}</a
+					>
+				{/if}
 			{/each}
 			{#if auth.me?.is_admin}
 				<a class="hover:text-slate-900 transition-colors" href={adminUrl}>Admin</a>

@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 
 	"paluketok/server/internal/entity"
 	"paluketok/server/internal/port"
@@ -57,17 +59,109 @@ func (u *ProjectUsecase) CreateProject(ctx context.Context, actor entity.Actor, 
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+	// URL proyek memakai slug (/projects/testing-jembut), bukan UUID.
+	slug, err := u.uniqueSlug(ctx, actor.UserID, name)
+	if err != nil {
+		return nil, err
+	}
+	p.Slug = slug
 	if err := u.deps.Projects.Create(ctx, p); err != nil {
 		return nil, wrap(err)
 	}
 	return p, nil
 }
 
-// GetProject membaca project milik actor.
-func (u *ProjectUsecase) GetProject(ctx context.Context, actor entity.Actor, id entity.ID) (*entity.Project, error) {
-	p, err := u.ownedProject(ctx, actor, id)
+// uniqueSlug menurunkan slug dari nama lalu memastikan belum dipakai owner ini
+// dengan menambahkan akhiran -2, -3, ... Dibatasi 20 percobaan; lebih dari itu
+// berarti ada yang tidak beres (dikembalikan sebagai error, bukan dipaksa).
+func (u *ProjectUsecase) uniqueSlug(ctx context.Context, ownerID entity.ID, name string) (string, error) {
+	base := entity.Slugify(name)
+	if base == "" {
+		// Nama hanya berisi tanda baca (mis. "***"): tetap butuh URL yang sah.
+		base = "proyek"
+	}
+	for i := 1; i <= 20; i++ {
+		candidate := base
+		// Percobaan pertama memakai slug polos, KECUALI namanya kebetulan
+		// berbentuk UUID: URL seperti itu akan ditangkap jalur UUID di
+		// resolveProject dan berakhir 404, jadi langsung diberi akhiran.
+		if i > 1 || entity.ValidID(base) {
+			candidate = slugWithSuffix(base, i)
+		}
+		taken, err := u.deps.Projects.SlugTaken(ctx, ownerID, candidate)
+		if err != nil {
+			return "", wrap(err)
+		}
+		if !taken {
+			return candidate, nil
+		}
+	}
+	return "", ErrValidation
+}
+
+// slugWithSuffix menambahkan "-n" ke slug dasar, memotong dasarnya bila total
+// melewati batas panjang. Hasilnya selalu berakhir dengan angka, jadi tidak
+// mungkin berbentuk UUID.
+func slugWithSuffix(base string, n int) string {
+	suffix := "-" + strconv.Itoa(n)
+	if len(base)+len(suffix) > entity.SlugMaxLen {
+		base = base[:entity.SlugMaxLen-len(suffix)]
+	}
+	return strings.Trim(base, "-") + suffix
+}
+
+// GetProject membaca project milik actor. ref boleh UUID (bentuk lama) ATAU
+// slug (bentuk ramah baca) — tautan lama tetap hidup setelah URL berpindah.
+func (u *ProjectUsecase) GetProject(ctx context.Context, actor entity.Actor, ref string) (*entity.Project, error) {
+	p, err := u.resolveProject(ctx, actor, ref)
 	if err != nil {
 		return nil, err
+	}
+	return p, nil
+}
+
+// Resolve menerjemahkan ref (UUID atau slug) menjadi proyek MILIK actor dan
+// menegakkan policy owner: bukan pemilik -> 403, tidak ada -> 404.
+//
+// Dipakai usecase lain (chat konteks proyek) supaya aturan 403-vs-404 dan
+// penerjemahan slug hanya hidup di satu tempat.
+func (u *ProjectUsecase) Resolve(ctx context.Context, actor entity.Actor, ref string) (*entity.Project, error) {
+	return u.resolveProject(ctx, actor, ref)
+}
+
+// resolveProject menerima UUID atau slug dan mengembalikan project milik actor.
+// Urutan pencarian: UUID -> slug. Proyek lama tanpa slug sudah di-backfill oleh
+// migrasi 0005, jadi setiap proyek punya URL enak dibaca.
+func (u *ProjectUsecase) resolveProject(ctx context.Context, actor entity.Actor, ref string) (*entity.Project, error) {
+	if actor.UserID == "" {
+		return nil, ErrForbidden
+	}
+	if entity.ValidID(ref) {
+		return u.ownedProject(ctx, actor, entity.ID(ref))
+	}
+	if !entity.ValidSlug(ref) {
+		return nil, ErrNotFound
+	}
+	// Slug unik per owner, jadi cari MILIK AKTOR dulu: kalau dua user punya
+	// slug sama, tiap orang mendapat proyeknya sendiri (bukan 403 salah orang).
+	p, err := u.deps.Projects.GetBySlug(ctx, actor.UserID, ref)
+	if errors.Is(err, port.ErrNotFound) && !actor.IsAdmin {
+		// Bukan miliknya. Cari tanpa filter owner: kalau ada milik user lain,
+		// balas 403 (plan/security.md: 403, bukan 404); kalau tidak ada sama
+		// sekali, 404.
+		if _, gerr := u.deps.Projects.GetBySlug(ctx, "", ref); gerr == nil {
+			return nil, ErrForbidden
+		}
+		return nil, ErrNotFound
+	}
+	if errors.Is(err, port.ErrNotFound) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, wrap(err)
+	}
+	if p.OwnerID != actor.UserID && !actor.IsAdmin {
+		return nil, ErrForbidden
 	}
 	return p, nil
 }

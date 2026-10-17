@@ -1,22 +1,56 @@
 <script lang="ts">
 	import Icon from '#lib/components/Icon.svelte';
-	import { summaryNav, summarySidebar } from '#lib/mock/summary';
+	import { summarySidebar } from '#lib/mock/summary';
 	import { auth } from '#lib/auth.svelte';
+	import type { Artifact } from '#lib/api';
 
 	// Sidebar /projects/[id]. Kerangka & urutan blok dari mockup (design/web/
-	// ringkasanProyek.html), tapi isi live: nama proyek + user dari API.
-	// Nav mengarah ke kartu tahap di halaman ini; hitungan "count" dari mock
-	// dibuang karena tak ada sumber angkanya di BE.
+	// ringkasanProyek.html), tapi nav-nya LIVE dan PROGRESIF.
+	//
+	// Progresif: menu tahap muncul satu per satu mengikuti artefak yang sudah
+	// jadi. Proyek yang baru dibuat belum punya artefak -> sidebar hanya
+	// menampilkan "Ringkasan". Begitu AI selesai menyusun PRD, menu "Dokumen ·
+	// PRD" muncul, dan seterusnya. Menu yang halamannya belum ada ditandai
+	// "segera" dan tidak bisa dipencet.
 	let {
 		projectName = '',
 		ready = 0,
-		total = 0
-	}: { projectName?: string; ready?: number; total?: number } = $props();
+		total = 0,
+		artifacts = []
+	}: {
+		projectName?: string;
+		ready?: number;
+		total?: number;
+		artifacts?: Artifact[];
+	} = $props();
+
+	/** Pemetaan tahap backend -> label & ikon menu sidebar. */
+	const STAGE_MENU: Record<string, { label: string; icon: string }> = {
+		prd: { label: 'Dokumen · PRD', icon: 'document' },
+		erd: { label: 'Model data · ERD', icon: 'db-simple' },
+		openapi: { label: 'Kontrak OpenAPI', icon: 'code' },
+		roles: { label: 'Role access', icon: 'users' },
+		security: { label: 'Proteksi', icon: 'shield' },
+		structure: { label: 'Struktur & prototipe', icon: 'layers-row' }
+	};
+
+	// Menu yang halamannya belum dibangun: tampil tapi tak bisa dipencet.
+	const SOON_MENU = [
+		{ label: 'Aktivitas proyek', icon: 'clock' },
+		{ label: 'Referensi & aset', icon: 'folder-open' }
+	];
+
+	const kinds = $derived(new Set(artifacts.map((a) => a.kind)));
+
+	// Menu tahap hanya untuk artefak yang sudah ada, urut tetap ala planner.md.
+	const stageMenu = $derived(
+		Object.keys(STAGE_MENU)
+			.filter((k) => kinds.has(k as Artifact['kind']))
+			.map((k) => ({ key: k, ...STAGE_MENU[k] }))
+	);
 
 	const user = $derived({
-		initials: (auth.me?.username ?? auth.me?.full_name ?? auth.me?.email ?? 'P')
-			.slice(0, 1)
-			.toUpperCase(),
+		initials: (auth.me?.username ?? auth.me?.full_name ?? 'P').slice(0, 1).toUpperCase(),
 		name: auth.me?.username ?? auth.me?.full_name ?? 'Pengguna',
 		role: auth.me ? `${auth.me.plan_tier} · ${auth.me.credits} kredit` : 'memuat…'
 	});
@@ -60,21 +94,49 @@
 			<span class="text-[10px] font-bold text-[#94A3B8] tracking-wider uppercase px-2 mb-1"
 				>Rancangan Proyek</span
 			>
-			{#each summaryNav as item (item.label)}
+
+			<a
+				class="flex items-center justify-between px-3 py-2 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE]/60 text-[#2563EB] font-medium text-xs transition-colors"
+				href="#atas"
+			>
+				<div class="flex items-center gap-2.5">
+					<Icon name="sitemap" class="w-4 h-4" />
+					<span>Ringkasan</span>
+				</div>
+			</a>
+
+			{#each stageMenu as item (item.key)}
 				<a
-					class="flex items-center justify-between px-3 py-2 rounded-xl {item.active
-						? 'bg-[#EFF6FF] border border-[#BFDBFE]/60 text-[#2563EB] font-medium'
-						: 'text-[#475569] hover:bg-slate-50 font-medium'} text-xs {item.label ===
-					'Aktivitas proyek'
-						? 'mt-2'
-						: ''} transition-colors"
-					href="#tahap"
+					class="flex items-center justify-between px-3 py-2 rounded-xl text-[#475569] hover:bg-slate-50 font-medium text-xs transition-colors"
+					href="#tahap-{item.key}"
+					data-purpose="menu-{item.key}"
 				>
 					<div class="flex items-center gap-2.5">
-						<Icon name={item.icon} class="w-4 h-4 {item.active ? '' : 'text-[#94A3B8]'}" />
+						<Icon name={item.icon} class="w-4 h-4 text-[#94A3B8]" />
 						<span>{item.label}</span>
 					</div>
+					<span class="text-[10px] font-semibold text-[#10B981]">siap</span>
 				</a>
+			{/each}
+
+			{#if stageMenu.length === 0}
+				<p class="text-[11px] text-[#94A3B8] px-3 py-2 leading-snug" data-purpose="empty-hint">
+					Menu tahap muncul setelah AI menyusun dokumennya.
+				</p>
+			{/if}
+
+			{#each SOON_MENU as item (item.label)}
+				<div
+					class="flex items-center justify-between px-3 py-2 rounded-xl text-[#CBD5E1] font-medium text-xs cursor-not-allowed mt-2"
+					title="Halaman belum tersedia"
+					data-purpose="menu-segera"
+				>
+					<div class="flex items-center gap-2.5">
+						<Icon name={item.icon} class="w-4 h-4 text-[#CBD5E1]" />
+						<span>{item.label}</span>
+					</div>
+					<span class="text-[10px] font-semibold text-[#CBD5E1]">segera</span>
+				</div>
 			{/each}
 		</nav>
 	</div>

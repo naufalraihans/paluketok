@@ -37,6 +37,11 @@ type ProjectRepo interface {
 	Create(ctx context.Context, p *entity.Project) error
 	GetByID(ctx context.Context, id entity.ID) (*entity.Project, error)
 	ListByOwner(ctx context.Context, ownerID entity.ID, page Page) ([]entity.Project, error)
+	// GetBySlug: resolusi URL ramah baca (/projects/{slug}). Slug beku sejak
+	// dibuat, jadi tidak perlu riwayat slug lama. ownerID wajib karena slug
+	// hanya unik per owner.
+	GetBySlug(ctx context.Context, ownerID entity.ID, slug string) (*entity.Project, error)
+	SlugTaken(ctx context.Context, ownerID entity.ID, slug string) (bool, error)
 	// ListAll semua project untuk admin (openapi.md GET /v1/admin/projects).
 	ListAll(ctx context.Context, page Page) ([]entity.Project, error)
 	Update(ctx context.Context, p *entity.Project) error
@@ -94,6 +99,10 @@ type WorkerQueue interface {
 type ArtifactRepo interface {
 	GetByID(ctx context.Context, id entity.ID) (*entity.Artifact, error)
 	ListByRun(ctx context.Context, runID entity.ID) ([]entity.Artifact, error)
+	// ListLatestByProject mengembalikan artefak terbaru per kind untuk satu
+	// project (lintas run). Dipakai sidebar progresif: proyek lama harus tetap
+	// menampilkan menu tahapnya walau run id-nya tak diketahui klien.
+	ListLatestByProject(ctx context.Context, projectID entity.ID) ([]entity.Artifact, error)
 	Update(ctx context.Context, a *entity.Artifact) error
 	// InsertVersion menyimpan versi lama sebelum artifacts ditimpa
 	// (plan/erd.md "Aturan versi artefak").
@@ -105,6 +114,13 @@ type ArtifactRepo interface {
 	// MarkDownstreamStale set status='stale' semua artefak tahap sesudah
 	// `after` pada run yang sama (planner.md bagian 7 regenerate).
 	MarkDownstreamStale(ctx context.Context, runID entity.ID, after entity.Stage) error
+}
+
+// MessageRepo akses project_messages (chat konteks proyek).
+type MessageRepo interface {
+	Create(ctx context.Context, m *entity.ProjectMessage) error
+	// ListByProject mengembalikan percakapan satu proyek, urut waktu.
+	ListByProject(ctx context.Context, projectID entity.ID, limit int) ([]entity.ProjectMessage, error)
 }
 
 // DecisionRepo mencatat jejak keputusan JEV (plan/planner.md bagian 4).

@@ -38,6 +38,7 @@ type Repos struct {
 	Orders     *OrderRepo
 	Ledger     *LedgerRepo
 	AISettings *AISettingsRepo
+	Messages   *MessageRepo
 }
 
 func New(pool *pgxpool.Pool) *Repos {
@@ -50,6 +51,7 @@ func New(pool *pgxpool.Pool) *Repos {
 		Orders:     &OrderRepo{pool},
 		Ledger:     &LedgerRepo{pool},
 		AISettings: &AISettingsRepo{pool},
+		Messages:   &MessageRepo{pool},
 	}
 }
 

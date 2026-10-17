@@ -33,11 +33,11 @@
 		<span class="text-xs font-semibold text-slate-700 bg-slate-50 px-2.5 py-1 rounded border border-slate-200"
 			>{credits}</span
 		>
-		<button
+		<a
 			class="text-xs font-semibold px-3 py-1 rounded border border-slate-300 hover:bg-slate-50 transition-colors text-slate-800 shadow-sm"
-			type="button"
+			href="/billing"
 		>
 			{topupLabel}
-		</button>
+		</a>
 	</div>
 </header>

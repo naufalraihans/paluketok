@@ -19,7 +19,10 @@ export default defineConfig({
 			adapter: adapter({
 				pages: 'build',
 				assets: 'build',
-				fallback: undefined,
+				// Rute dinamis (/projects/[id]) tidak bisa diprerender: id-nya
+				// tak diketahui saat build. Tanpa fallback, nginx jatuh ke
+				// /index.html sehingga halaman detail render landing page.
+				fallback: '200.html',
 				precompress: false,
 				strict: true
 			}),

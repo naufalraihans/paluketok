@@ -55,6 +55,11 @@ func NewRouter(o RouterOptions) http.Handler {
 	authed.HandleFunc("GET /v1/projects", o.Handlers.ListProjects)
 	authed.HandleFunc("POST /v1/projects", o.Handlers.CreateProject)
 	authed.HandleFunc("GET /v1/projects/{id}", o.Handlers.GetProject)
+	authed.HandleFunc("GET /v1/projects/{id}/artifacts", o.Handlers.ListProjectArtifacts)
+	// Chat konteks proyek (Fase 4). Ikut jatah userRate 60/menit: runsRate hanya
+	// menangkap POST .../runs, jadi tidak perlu rate limit tambahan di sini.
+	authed.HandleFunc("POST /v1/projects/{id}/messages", o.Handlers.SendMessage)
+	authed.HandleFunc("GET /v1/projects/{id}/messages", o.Handlers.ListMessages)
 	authed.HandleFunc("PATCH /v1/projects/{id}", o.Handlers.UpdateProject)
 	authed.HandleFunc("DELETE /v1/projects/{id}", o.Handlers.ArchiveProject)
 	authed.HandleFunc("POST /v1/projects/{id}/runs", o.Handlers.CreateRun)

@@ -71,6 +71,11 @@ type ArtifactRepo struct{ db dbtx }
 
 const artifactCols = `id, run_id, user_id, kind, content, version, status, created_at, updated_at`
 
+// artifactColsAliased: versi berkualifikasi tabel untuk query yang JOIN
+// (ListLatestByProject) agar kolom `id`/`status` tidak ambigu.
+const artifactColsAliased = `a.id, a.run_id, a.user_id, a.kind, a.content, a.version,
+	a.status, a.created_at, a.updated_at`
+
 func scanArtifact(row scannable) (*entity.Artifact, error) {
 	var a entity.Artifact
 	if err := row.Scan(&a.ID, &a.RunID, &a.UserID, &a.Kind, &a.Content, &a.Version,
@@ -86,6 +91,32 @@ func (r *ArtifactRepo) GetByID(ctx context.Context, id entity.ID) (*entity.Artif
 
 func (r *ArtifactRepo) ListByRun(ctx context.Context, runID entity.ID) ([]entity.Artifact, error) {
 	rows, err := r.db.Query(ctx, `select `+artifactCols+` from artifacts where run_id=$1 order by kind`, runID)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	var out []entity.Artifact
+	for rows.Next() {
+		a, err := scanArtifact(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *a)
+	}
+	return out, mapErr(rows.Err())
+}
+
+// ListLatestByProject mengembalikan artefak TERBARU per kind untuk satu project,
+// lintas run. distinct on (kind) + order by created_at desc mengambil versi
+// terakhir bila satu kind pernah di-regenerate di run berbeda. Isi content ikut
+// (dipakai halaman detail); sidebar hanya membaca kind/version/status.
+func (r *ArtifactRepo) ListLatestByProject(ctx context.Context, projectID entity.ID) ([]entity.Artifact, error) {
+	rows, err := r.db.Query(ctx,
+		`select distinct on (a.kind) `+artifactColsAliased+`
+		 from artifacts a
+		 join plan_runs r on r.id = a.run_id
+		 where r.project_id = $1
+		 order by a.kind, a.created_at desc`, projectID)
 	if err != nil {
 		return nil, mapErr(err)
 	}

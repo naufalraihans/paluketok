@@ -111,11 +111,17 @@ export type Project = {
 	brief: string;
 	stack: Stack;
 	status: 'draft' | 'ready' | 'archived';
+	/** Slug URL enak dibaca (/projects/testing-jembut); kosong untuk proyek lama. */
+	slug?: string;
 	created_at: string;
 	updated_at: string;
 };
 export const listProjects = () => get<{ projects: Project[] }>('/v1/projects');
-export const getProject = (id: string) => get<Project>(`/v1/projects/${id}`);
+/**
+ * ref boleh UUID atau slug. Halaman memakai slug; UUID tetap diterima supaya
+ * tautan lama yang sudah dibagikan tidak mati.
+ */
+export const getProject = (ref: string) => get<Project>(`/v1/projects/${ref}`);
 export const createProject = (input: { name: string; brief: string; stack?: Stack }) =>
 	post<Project>('/v1/projects', { stack: {}, ...input });
 
@@ -146,6 +152,34 @@ export type Artifact = {
 };
 export const listRunArtifacts = (runId: string) =>
 	get<{ artifacts: Artifact[] }>(`/v1/runs/${runId}/artifacts`);
+/**
+ * Artefak terbaru per kind untuk satu PROYEK (bukan per run).
+ * Dipakai sidebar progresif: sidebar tahu menu tahap mana yang harus muncul
+ * tanpa bergantung pada run id di sessionStorage, sehingga proyek lama tetap
+ * menampilkan menunya di browser/perangkat lain.
+ */
+export const listProjectArtifacts = (projectId: string) =>
+	get<{ artifacts: Artifact[] }>(`/v1/projects/${projectId}/artifacts`);
+
+// --- chat konteks proyek (perancangan saja, gratis) ---
+
+/** Satu pesan percakapan. `suggested_stage` hanya ada di balasan model. */
+export type ProjectMessage = {
+	id: string;
+	project_id: string;
+	role: 'user' | 'assistant';
+	content: string;
+	suggested_stage?: string;
+	model?: string;
+	usage?: { input_tokens: number; output_tokens: number };
+	created_at: string;
+};
+
+export const sendProjectMessage = (projectId: string, content: string) =>
+	post<ProjectMessage>(`/v1/projects/${projectId}/messages`, { content });
+
+export const listProjectMessages = (projectId: string) =>
+	get<{ messages: ProjectMessage[] }>(`/v1/projects/${projectId}/messages`);
 export const getArtifact = (id: string) => get<Artifact>(`/v1/artifacts/${id}`);
 export const regenerateArtifact = (id: string) => post<Artifact>(`/v1/artifacts/${id}/regenerate`);
 
