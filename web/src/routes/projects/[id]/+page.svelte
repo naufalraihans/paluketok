@@ -37,6 +37,11 @@
 	let tiles = $state<{ label: string; ok: boolean; note: string; kind: string; artifactId?: string }[]>([]);
 	// Artefak terbaru per kind untuk proyek ini: sumber sidebar progresif.
 	let projectArtifacts = $state<Artifact[]>([]);
+	// Artefak run terakhir, LENGKAP dengan `content`. Daftar per-proyek sengaja
+	// tidak mengirim isi dokumen (payload sidebar), sedangkan angka metrik dan
+	// seksi proteksi harus dihitung dari isinya — jadi diambil dari jalur run
+	// yang memang sudah dipanggil saat run selesai.
+	let runArtifacts = $state<Artifact[]>([]);
 	let busy = $state(false);
 	let regenBusy = $state('');
 	let regenMsg = $state('');
@@ -94,12 +99,13 @@
 			} catch {
 				projectArtifacts = []; // sidebar tetap tampil, hanya tanpa menu tahap
 			}
-			// Ringkasan run terakhir: API tak sediakan list-run, pakai cache
-			// sessionStorage singkat (hanya untuk status progres & polling).
-			const lastRunId = sessionStorage.getItem(`pk-run-${projectId}`);
-			if (lastRunId) {
-				runId = lastRunId;
-				await loadRun(lastRunId);
+			// Ringkasan run terbaru ikut di respons proyek, jadi status generate
+			// tidak lagi bergantung pada sessionStorage (proyek dibuka di
+			// perangkat lain tetap benar). sessionStorage cuma dipakai untuk
+			// polling run yang sedang jalan di tab ini.
+			if (p.latest_run) {
+				runId = p.latest_run.id;
+				await loadRun(p.latest_run.id);
 			}
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 401) {
@@ -120,6 +126,7 @@
 		currentStage = run.current_stage ?? '';
 		if (run.status === 'done' || run.status === 'failed') {
 			const { artifacts } = await listRunArtifacts(rid);
+			runArtifacts = artifacts;
 			tiles = STAGES.map((s) => {
 				const a = artifacts.find((x) => x.kind === s);
 				return {
@@ -166,6 +173,114 @@
 		el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		el.classList.add('ring-2', 'ring-[#2383e2]');
 		setTimeout(() => el.classList.remove('ring-2', 'ring-[#2383e2]'), 2200);
+	}
+
+	/**
+	 * Metrik yang dihitung dari artefak, bukan angka karangan.
+	 *
+	 * Yang bisa dihitung jujur dari isi dokumen: jumlah dokumen, jumlah tabel
+	 * DBML, jumlah operasi OpenAPI, jumlah seksi dokumen proteksi. Kalau
+	 * dokumennya belum ada, nilainya "—": halaman proyek lebih baik mengaku
+	 * kosong daripada menampilkan angka contoh yang tampak seperti hasil
+	 * analisis.
+	 */
+	function hitungMetrik(arts: Artifact[]) {
+		const by = (k: string) => arts.find((a) => a.kind === k);
+		const cnt = (re: RegExp, s?: string) => (s ? (s.match(re) ?? []).length : 0);
+
+		const erd = by('erd');
+		const openapi = by('openapi');
+		const security = by('security');
+		const tabel = cnt(/^\s*Table\s+\w+/gm, erd?.content);
+		const op = cnt(/^\s{6,}(get|post|put|patch|delete):/gm, openapi?.content);
+		const seksi = cnt(/^##\s+\S/gm, security?.content);
+
+		return [
+			{
+				value: arts.length ? String(arts.length) : '—',
+				label: 'Dokumen',
+				note: arts.length ? `${arts.length}/6 tahap tersedia` : 'Belum ada dokumen',
+				icon: 'document'
+			},
+			{
+				value: erd ? String(tabel) : '—',
+				label: 'Entitas data',
+				note: erd ? `${tabel} tabel di ERD v${erd.version}` : 'Belum ada ERD',
+				icon: 'db-simple'
+			},
+			{
+				value: openapi ? String(op) : '—',
+				label: 'Endpoint',
+				note: openapi ? `operasi di OpenAPI v${openapi.version}` : 'Belum ada OpenAPI',
+				icon: 'code'
+			},
+			{
+				value: security ? String(seksi) : '—',
+				label: 'Bagian proteksi',
+				note: security ? `seksi di Proteksi v${security.version}` : 'Belum ada dokumen proteksi',
+				icon: 'shield'
+			}
+		];
+	}
+
+	/** Simpul benang merah = artefak terbaru per tahap, urut alur planner. */
+	function hitungThread(arts: Artifact[]) {
+		const TAG: Record<string, string> = {
+			prd: 'PRD',
+			erd: 'ENTITAS',
+			openapi: 'KONTRAK',
+			roles: 'ROLE',
+			security: 'PROTEKSI',
+			structure: 'STRUKTUR'
+		};
+		const ICON: Record<string, string> = {
+			prd: 'document',
+			erd: 'db-simple',
+			openapi: 'code',
+			roles: 'users',
+			security: 'shield',
+			structure: 'layers-row'
+		};
+		const nodes = STAGES.filter((s) => arts.some((a) => a.kind === s)).map((s) => {
+			const a = arts.find((x) => x.kind === s)!;
+			return {
+				tag: `${TAG[s]} · v${a.version}`,
+				title: STAGE_LABEL[s],
+				note: `${new Date(a.created_at).toLocaleDateString('id-ID')} · ${a.status}`,
+				icon: ICON[s],
+				artifactId: a.id
+			};
+		});
+		return {
+			nodes,
+			connected: nodes.length ? `${nodes.length} dari 6 dokumen sudah jadi` : '',
+			pending: nodes.length ? 'Dokumen lain menyusul setelah generate' : 'Belum ada dokumen'
+		};
+	}
+
+	/** Item proteksi = seksi dokumen security, apa adanya dari isinya. */
+	function hitungProteksi(arts: Artifact[]) {
+		const a = arts.find((x) => x.kind === 'security');
+		if (!a) return { body: 'Belum ada dokumen proteksi untuk proyek ini.', items: [] };
+		const items = (a.content.match(/^##\s+(.+)$/gm) ?? []).map((h) => ({
+			label: h.replace(/^##\s+/, '').trim(),
+			status: 'Tertulis di dokumen',
+			ok: true
+		}));
+		return {
+			body: `Ringkasan seksi dari Proteksi v${a.version}. Bukan audit keamanan.`,
+			items
+		};
+	}
+
+	/** Aktivitas = versi artefak (nyata, bertanggal), bukan log karangan. */
+	function hitungAktivitas(arts: Artifact[]) {
+		return [...arts]
+			.sort((x, y) => y.created_at.localeCompare(x.created_at))
+			.map((a) => ({
+				time: new Date(a.created_at).toLocaleDateString('id-ID'),
+				text: `${STAGE_LABEL[a.kind] ?? a.kind} v${a.version} · ${a.status}`
+			}));
 	}
 
 	async function startRun() {
@@ -215,35 +330,60 @@
 		};
 	});
 
-	const content = $derived.by<SummaryContent>(() => ({
-		...summary,
-		breadcrumb: { ...summary.breadcrumb, project: name || summary.breadcrumb.project },
-		pageHeader: {
-			...summary.pageHeader,
-			eyebrow: `${name || 'Proyek'} / Ringkasan`
-		},
-		overview: {
-			...summary.overview,
-			monogram: (name || 'P.').slice(0, 2) + '.',
-			name: name || '…',
-			status:
-				runStatus === 'running'
-					? 'Generate berjalan'
-					: runStatus === 'done'
-						? 'Siap · ready'
-						: status === 'draft'
-							? 'Draf'
-							: status || '…',
-			description: brief || summary.overview.description,
-			facts: [`Dibuat ${createdAt}`, `Pemilik: ${auth.me?.username ?? 'saya'}`],
-			readiness: {
-				...summary.overview.readiness,
-				percent: total > 0 ? Math.round((progress / total) * 100) : 0,
-				note: runStatus ? `${progress}/${total} tahap selesai` : summary.overview.readiness.note
+	/**
+	 * Semua blok di bawah kartu proyek dihitung dari artefak NYATA. Mockup beku
+	 * (design/web/ringkasanProyek.html) dulu menaruh angka contoh, nama
+	 * kolaborator karangan, dan log aktivitas palsu di sini; di halaman proyek
+	 * pengguna, angka yang tampak seperti hasil analisis tapi bukan jauh lebih
+	 * buruk daripada kolom kosong.
+	 */
+	const content = $derived.by<SummaryContent>(() => {
+		// Metadata (versi, status, tanggal) dari daftar per-proyek; isi dokumen
+		// untuk menghitung angka dari artefak run (daftar per-proyek tidak
+		// mengirim `content`, lihat handler ListProjectArtifacts).
+		const arts = projectArtifacts;
+		const full = runArtifacts.length > 0 ? runArtifacts : arts;
+		return {
+			...summary,
+			meta: { ...summary.meta, title: `${name || 'Proyek'} · Ringkasan blueprint` },
+			breadcrumb: { ...summary.breadcrumb, project: name || '' },
+			pageHeader: {
+				...summary.pageHeader,
+				eyebrow: `${name || 'Proyek'} / Ringkasan`,
+				title: 'Rancangan yang saling terhubung.',
+				subtitle: brief || 'Blueprint proyek ini, tahap demi tahap.'
+			},
+			overview: {
+				...summary.overview,
+				monogram: (name || 'P.').slice(0, 2) + '.',
+				name: name || '…',
+				status:
+					runStatus === 'running'
+						? 'Generate berjalan'
+						: runStatus === 'done'
+							? 'Siap · ready'
+							: status === 'draft'
+								? 'Draf'
+								: status || '…',
+				description: brief || 'Brief masih kosong.',
+				// Pemilik = pengguna sendiri: belum ada kolaborator di model data.
+				facts: createdAt ? [`Dibuat ${createdAt}`, `Pemilik: ${auth.me?.username ?? 'saya'}`] : [],
+				readiness: {
+					...summary.overview.readiness,
+					percent: total > 0 ? Math.round((progress / total) * 100) : 0,
+					note: runStatus ? `${progress}/${total} tahap selesai` : 'Belum ada generate'
+				}
+			},
+			metrics: hitungMetrik(full),
+			thread: { ...summary.thread, ...hitungThread(arts) },
+			security: { ...summary.security, ...hitungProteksi(full) },
+			review: {
+				...summary.review,
+				counter: `${arts.length}/6 dokumen`,
+				activities: hitungAktivitas(arts)
 			}
-		},
-		metrics: summary.metrics
-	}));
+		};
+	});
 </script>
 
 <svelte:head>
@@ -253,12 +393,7 @@
 	<SummarySidebar projectName={name} ready={progress} total={total} artifacts={projectArtifacts} />
 
 	<div class="flex-1 flex flex-col h-full overflow-hidden bg-[#F8F9FA]" data-purpose="main-layout">
-		<SummaryTopbar
-			breadcrumb={content.breadcrumb}
-			savedAt={content.savedAt}
-			collaborators={content.collaborators}
-			shareLabel={content.shareLabel}
-		/>
+		<SummaryTopbar breadcrumb={content.breadcrumb} />
 
 		<main class="flex-1 overflow-y-auto px-8 py-6 space-y-6" data-purpose="dashboard-scrollable-content">
 			{#if loading}
@@ -276,11 +411,7 @@
 					>
 				</div>
 			{:else}
-				<SummaryHeader
-					overview={content.overview}
-					pageHeader={content.pageHeader}
-					exportLabel={content.exportLabel}
-				/>
+				<SummaryHeader overview={content.overview} pageHeader={content.pageHeader} />
 				{#if !runId || runStatus === 'failed'}
 					<div class="rounded-xl border border-slate-200 bg-white p-6 flex items-center justify-between">
 						<p class="text-sm text-[#475569]">
@@ -338,9 +469,9 @@
 						</div>
 					</div>
 				{/if}
-				<!-- Chat konteks proyek: hanya perancangan, gratis. Menyimpan
-				     percakapan di server, dan usul tahap dari model dipakai untuk
-				     menyorot menu sidebar. -->
+				<!-- Chat konteks proyek: hanya perancangan, gratis. Server menyimpan
+				     percakapan, dan usul tahap dari model dipakai untuk menyorot
+				     menu sidebar. -->
 				<ProjectChat projectId={projectId || params.id} onsuggest={sorotTahap} />
 				<SummaryMetrics metrics={content.metrics} />
 				<SummaryThread thread={content.thread} security={content.security} />

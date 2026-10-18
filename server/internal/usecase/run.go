@@ -108,6 +108,44 @@ func (u *RunUsecase) ListDecisions(ctx context.Context, actor entity.Actor, runI
 	return list, nil
 }
 
+// LatestRun mengembalikan run TERBARU milik project (nil bila belum ada run).
+//
+// Frontend butuh ini supaya status generate tidak lagi bergantung pada run id
+// yang cuma tersimpan di sessionStorage: proyek dibuka di browser/perangkat
+// lain tetap menampilkan progres yang benar.
+//
+// ponytail: satu run terbaru, bukan riwayat penuh. Tambah endpoint list bila
+// halaman riwayat run benar-benar dibangun.
+func (u *RunUsecase) LatestRun(ctx context.Context, actor entity.Actor, projectID entity.ID) (*entity.PlanRun, error) {
+	if actor.UserID == "" {
+		return nil, ErrForbidden
+	}
+	p, err := u.deps.Projects.GetByID(ctx, projectID)
+	if err != nil {
+		if errors.Is(err, port.ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, wrap(err)
+	}
+	if p.OwnerID != actor.UserID && !actor.IsAdmin {
+		return nil, ErrForbidden
+	}
+	runs, err := u.deps.Runs.ListByProject(ctx, projectID)
+	if err != nil {
+		return nil, wrap(err)
+	}
+	if len(runs) == 0 {
+		return nil, nil
+	}
+	newest := runs[0]
+	for _, r := range runs[1:] {
+		if r.CreatedAt.After(newest.CreatedAt) {
+			newest = r
+		}
+	}
+	return &newest, nil
+}
+
 // FailRun menandai run gagal dan me-refund kreditnya sekali
 // (auth_billing.md 3.2). Dipakai worker, bukan endpoint publik.
 func (u *RunUsecase) FailRun(ctx context.Context, runID entity.ID, reason string) error {

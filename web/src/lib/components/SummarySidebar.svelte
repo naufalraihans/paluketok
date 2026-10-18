@@ -150,10 +150,10 @@
 				>{summarySidebar.milestone.label}</span
 			>
 			<p class="font-bold text-xs text-[#0F172A]">
-				{total > 0 ? `${ready}/${total} tahap selesai` : summarySidebar.milestone.title}
+				{total > 0 ? `${ready}/${total} tahap selesai` : 'Belum ada dokumen'}
 			</p>
 			<p class="text-[11px] text-[#64748B] mt-0.5">
-				{total > 0 ? 'Enam dokumen planning' : summarySidebar.milestone.when}
+				{total > 0 ? 'Enam dokumen planning' : 'Mulai generate untuk menyusun enam dokumen'}
 			</p>
 		</div>
 

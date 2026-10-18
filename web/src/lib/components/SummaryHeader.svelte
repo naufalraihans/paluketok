@@ -2,11 +2,9 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import type { SummaryContent } from '#lib/mock/summary-types';
 
-	let {
-		overview,
-		pageHeader,
-		exportLabel
-	}: Pick<SummaryContent, 'overview' | 'pageHeader' | 'exportLabel'> = $props();
+	// Kartu metadata proyek. Tombol "Ekspor blueprint" dari mockup DIBUANG:
+	// belum ada endpoint ekspor, jadi tombolnya cuma janji kosong.
+	let { overview, pageHeader }: Pick<SummaryContent, 'overview' | 'pageHeader'> = $props();
 </script>
 
 <section class="flex items-start justify-between" data-purpose="page-title-header">
@@ -17,13 +15,6 @@
 		<h2 class="text-2xl font-bold text-[#0F172A] tracking-tight">{pageHeader.title}</h2>
 		<p class="text-xs text-[#64748B] mt-1">{pageHeader.subtitle}</p>
 	</div>
-	<button
-		class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white text-xs font-semibold text-[#0F172A] hover:bg-slate-50 shadow-2xs"
-		type="button"
-	>
-		<Icon name="download" class="w-4 h-4 text-[#64748B]" />
-		{exportLabel}
-	</button>
 </section>
 
 <section

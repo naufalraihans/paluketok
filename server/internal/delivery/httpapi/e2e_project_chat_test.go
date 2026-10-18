@@ -6,9 +6,18 @@
 //  2. `content` kosong atau melebihi 4.000 karakter -> 422.
 //  3. Proyek user lain -> 403 (policy owner, bukan bocor).
 //  4. Chat GRATIS: saldo kredit tidak berubah sama sekali.
+//  5. Prompt sistem tidak menyebut nama produk; riwayat bisa ditelusuri
+//     dengan limit/offset.
 package httpapi
 
-import "testing"
+import (
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"paluketok/server/internal/usecase"
+)
 
 func TestE2E_ProjectChat_KonteksDanBatas(t *testing.T) {
 	e := newE2E(t)
@@ -92,6 +101,102 @@ func TestE2E_ProjectChat_KonteksDanBatas(t *testing.T) {
 	_, me2 := e.do(t, "GET", "/v1/me", tok, nil)
 	if after := int(me2["credits"].(float64)); after != before {
 		t.Fatalf("chat tidak boleh memotong kredit: %d -> %d", before, after)
+	}
+}
+
+// TestE2E_ProjectChat_PromptTidakSebutProduk: prompt sistem tidak boleh
+// menyebut nama alat (PaluKetok) dan tidak boleh menyuruh model bertanya ulang
+// hal yang sudah ada di brief.
+//
+// Diuji di usecase (bukan lewat HTTP): yang diperiksa isi prompt, dan mockLLM
+// tidak menyimpan permintaan yang diterimanya.
+func TestE2E_ProjectChat_PromptTidakSebutProduk(t *testing.T) {
+	got := usecase.SystemPrompt("Kasir Warung")
+	if strings.Contains(got, "PaluKetok") {
+		t.Fatalf("system prompt masih menyebut PaluKetok: %q", got)
+	}
+	if !strings.Contains(got, "Kasir Warung") {
+		t.Fatalf("system prompt harus menyebut nama proyek: %q", got)
+	}
+	if !strings.Contains(got, "Jangan menanyakan ulang") {
+		t.Fatalf("system prompt harus melarang bertanya ulang isi brief: %q", got)
+	}
+}
+
+// TestE2E_ProjectChat_OffsetMenelusuriRiwayat: limit/offset untuk riwayat
+// panjang. Tanpa offset, 5 percakapan (10 pesan) dipotong ke `limit` pesan
+// TERAKHIR; dengan offset, halaman sebelumnya bisa dibaca tanpa mengubah
+// jendela konteks yang dikirim ke model.
+func TestE2E_ProjectChat_OffsetMenelusuriRiwayat(t *testing.T) {
+	e := newE2E(t)
+	tok := e.fix.token(t, uidE2E)
+	_, p := e.do(t, "POST", "/v1/projects", tok, map[string]any{
+		"name": "Riwayat Panjang", "brief": "b", "stack": map[string]string{"be": "go"}})
+	slug, _ := p["slug"].(string)
+
+	for i := 0; i < 5; i++ {
+		if code, r := e.do(t, "POST", "/v1/projects/"+slug+"/messages", tok,
+			map[string]any{"content": "pertanyaan " + strconv.Itoa(i)}); code != 200 {
+			t.Fatalf("kirim %d: got %d %v", i, code, r)
+		}
+	}
+
+	// 10 pesan tersimpan; limit=4 ambil 4 TERAKHIR.
+	_, all := e.do(t, "GET", "/v1/projects/"+slug+"/messages?limit=4", tok, nil)
+	if n := len(all["messages"].([]any)); n != 4 {
+		t.Fatalf("limit=4 harus 4 pesan, dapat %d", n)
+	}
+	_, page0 := e.do(t, "GET", "/v1/projects/"+slug+"/messages?limit=4&offset=0", tok, nil)
+	_, page1 := e.do(t, "GET", "/v1/projects/"+slug+"/messages?limit=4&offset=4", tok, nil)
+	if len(page1["messages"].([]any)) != 4 {
+		t.Fatalf("offset=4 harus 4 pesan, dapat %d", len(page1["messages"].([]any)))
+	}
+	// Halaman kedua berisi pesan yang LEBIH LAMA dari halaman pertama.
+	first := page0["messages"].([]any)[0].(map[string]any)["content"]
+	older := page1["messages"].([]any)[0].(map[string]any)["content"]
+	if first == older {
+		t.Fatalf("offset tidak menggeser jendela: %v", first)
+	}
+	// Terlalu jauh ke belakang = kosong, bukan error.
+	if code, deep := e.do(t, "GET", "/v1/projects/"+slug+"/messages?limit=4&offset=999", tok, nil); code != 200 ||
+		len(deep["messages"].([]any)) != 0 {
+		t.Fatalf("offset melewati awal harus 200 + kosong, dapat %d %v", code, deep)
+	}
+}
+
+// TestE2E_GetProject_LatestRunTanpaSessionStorage: GET /v1/projects/{ref}
+// membawa ringkasan run terbaru, jadi halaman proyek benar di perangkat baru.
+func TestE2E_GetProject_LatestRunTanpaSessionStorage(t *testing.T) {
+	e := newE2E(t)
+	tok := e.fix.token(t, uidE2E)
+	_, p := e.do(t, "POST", "/v1/projects", tok, map[string]any{
+		"name": "Progres Lintas Perangkat", "brief": "b", "stack": map[string]string{"be": "go"}})
+	slug, _ := p["slug"].(string)
+
+	// Belum ada run: field-nya tidak dikirim (klien tidak perlu menebak null).
+	_, before := e.do(t, "GET", "/v1/projects/"+slug, tok, nil)
+	if _, ok := before["latest_run"]; ok {
+		t.Fatalf("proyek tanpa run tidak boleh punya latest_run: %v", before)
+	}
+
+	if code, r := e.do(t, "POST", "/v1/projects/"+slug+"/runs", tok, nil); code != 202 {
+		t.Fatalf("mulai run: got %d %v", code, r)
+	} else if rid, _ := r["id"].(string); rid == "" {
+		t.Fatalf("run tanpa id: %v", r)
+	} else {
+		waitFor(t, 5*time.Second, func() bool {
+			c, rr := e.do(t, "GET", "/v1/runs/"+rid, tok, nil)
+			return c == 200 && rr["status"] == "done"
+		}, "run done")
+	}
+
+	_, after := e.do(t, "GET", "/v1/projects/"+slug, tok, nil)
+	lr, ok := after["latest_run"].(map[string]any)
+	if !ok {
+		t.Fatalf("latest_run harus ada setelah run: %v", after)
+	}
+	if lr["status"] != "done" || lr["total"].(float64) != 6 {
+		t.Fatalf("latest_run tidak lengkap: %v", lr)
 	}
 }
 

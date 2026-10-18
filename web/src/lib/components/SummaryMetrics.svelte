@@ -5,7 +5,7 @@
 	let { metrics }: Pick<SummaryContent, 'metrics'> = $props();
 </script>
 
-<section class="grid grid-cols-4 gap-4" data-purpose="metrics-summary">
+<section class="grid grid-cols-2 md:grid-cols-4 gap-4" data-purpose="metrics-summary">
 	{#each metrics as m (m.label)}
 		<div class="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-xs relative">
 			<div class="absolute top-4 right-4 text-[#94A3B8]">

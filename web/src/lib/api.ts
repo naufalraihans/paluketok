@@ -113,6 +113,12 @@ export type Project = {
 	status: 'draft' | 'ready' | 'archived';
 	/** Slug URL enak dibaca (/projects/testing-jembut); kosong untuk proyek lama. */
 	slug?: string;
+	/**
+	 * Ringkasan run TERBARU. Ada bila proyek sudah pernah di-generate.
+	 * Dikirim server supaya status generate tidak bergantung pada run id di
+	 * sessionStorage (proyek dibuka di perangkat lain tetap benar).
+	 */
+	latest_run?: Run;
 	created_at: string;
 	updated_at: string;
 };

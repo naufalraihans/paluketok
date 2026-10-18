@@ -29,10 +29,11 @@ const (
 	ChatMaxHistory = 20
 	// ChatMaxTotal total karakter brief + dokumen + riwayat.
 	ChatMaxTotal = 16000
-	// ChatListLimit jumlah pesan yang dikembalikan GET (sedikit lebih longgar
-	// dari jendela model: pengguna boleh membaca lebih banyak daripada yang
-	// dikirim ulang ke model).
-	ChatListLimit = 100
+	// ChatSystemReserve ruang yang disisakan untuk system prompt + instruksi
+	// penutup. Yang dikirim ke provider adalah system prompt + konteks, dan
+	// hanya konteks yang di-clip: tanpa cadangan ini totalnya melewati
+	// ChatMaxTotal.
+	ChatSystemReserve = 1500
 )
 
 // ChatUsecase melayani percakapan perancangan per proyek.
@@ -49,15 +50,28 @@ func NewChatUsecase(d Deps) *ChatUsecase { return &ChatUsecase{deps: d} }
 // SetResolver menyambungkan resolver proyek (ProjectUsecase).
 func (u *ChatUsecase) SetResolver(r ProjectResolver) { u.resolve = r }
 
-// systemPrompt adalah instruksi tetap chat. Ditulis di server, TIDAK PERNAH
+// SystemPrompt menyusun instruksi tetap chat. Ditulis di server, TIDAK PERNAH
 // dari klien: kontrak lama menolak `role: system` dari luar, dan aturan itu
 // dipertahankan di sini.
-const systemPrompt = `Kamu asisten perancangan untuk PaluKetok. Tugasmu HANYA planning: ` +
-	`membantu menyusun enam dokumen (PRD, ERD, OpenAPI, Role access, Proteksi, Struktur). ` +
-	`Kamu tidak menulis kode aplikasi. Balas ringkas dan konkret, dalam bahasa yang dipakai pengguna. ` +
-	`Kalau informasi sudah cukup untuk melanjutkan, sebutkan tahap berikutnya secara eksplisit ` +
-	`(satu dari: prd, erd, openapi, roles, security, structure) di bagian paling akhir balasanmu, ` +
-	`dengan format tepat: TAHAP BERIKUTNYA: <nama tahap>. Kalau belum cukup, tulis TAHAP BERIKUTNYA: -`
+//
+// Nama produk (PaluKetok) SENGAJA tidak disebut: model harus bicara tentang
+// proyek PENGGUNA, bukan tentang aplikasi ini. Nama proyek disisipkan sebagai
+// satu-satunya identitas yang relevan.
+//
+// Diekspor agar bisa diuji langsung: yang perlu dijaga adalah ISINYA (tidak
+// menyebut produk, memakai nama proyek), dan itu tidak terlihat dari HTTP.
+func SystemPrompt(projectName string) string {
+	return `Kamu asisten perancangan untuk proyek bernama "` + projectName + `". ` +
+		`Bahas HANYA proyek itu; jangan menyebut nama alat atau produk lain selain nama proyek di atas. ` +
+		`Tugasmu HANYA planning: membantu menyusun enam dokumen (PRD, ERD, OpenAPI, Role access, Proteksi, Struktur). ` +
+		`Kamu tidak menulis kode aplikasi. Balas ringkas dan konkret, dalam bahasa yang dipakai pengguna. ` +
+		`Jangan menanyakan ulang hal yang sudah tertulis di <brief> atau di <artifact>; pakai yang sudah ada. ` +
+		`Kalau brief masih terlalu tipis, ajukan satu asumsi konkret lalu minta konfirmasi singkat, ` +
+		`bukan daftar pertanyaan. ` +
+		`Kalau informasi sudah cukup untuk melanjutkan, sebutkan tahap berikutnya secara eksplisit ` +
+		`(satu dari: prd, erd, openapi, roles, security, structure) di bagian paling akhir balasanmu, ` +
+		`dengan format tepat: TAHAP BERIKUTNYA: <nama tahap>. Kalau belum cukup, tulis TAHAP BERIKUTNYA: -`
+}
 
 // SendMessage menyimpan pesan pengguna, memanggil model dengan konteks proyek,
 // lalu menyimpan balasan. Chat GRATIS: tidak ada baris credits_ledger.
@@ -96,7 +110,7 @@ func (u *ChatUsecase) SendMessage(ctx context.Context, actor entity.Actor, ref, 
 		MaxTokens:  1500,
 		Temperature: 0.3,
 		Messages: []port.LLMMessage{
-			{Role: "system", Content: systemPrompt},
+			{Role: "system", Content: SystemPrompt(p.Name)},
 			{Role: "user", Content: u.buildContext(ctx, p, history, text)},
 		},
 	}
@@ -128,16 +142,35 @@ func (u *ChatUsecase) SendMessage(ctx context.Context, actor entity.Actor, ref, 
 }
 
 // ListMessages mengembalikan percakapan satu proyek, urut waktu (lama -> baru).
-func (u *ChatUsecase) ListMessages(ctx context.Context, actor entity.Actor, ref string) ([]entity.ProjectMessage, error) {
+//
+// Page dipakai untuk MENELUSURI riwayat panjang; konteks yang dikirim ke model
+// tetap dibatasi ChatMaxHistory pesan terakhir (lihat SendMessage), jadi dua
+// batas itu tidak saling mengunci.
+func (u *ChatUsecase) ListMessages(ctx context.Context, actor entity.Actor, ref string, page port.Page) ([]entity.ProjectMessage, error) {
 	p, err := u.owned(ctx, actor, ref)
 	if err != nil {
 		return nil, err
 	}
-	list, err := u.deps.Messages.ListByProject(ctx, p.ID, ChatListLimit)
+	page = pageOrDefault(page)
+	// Repo memotong `limit` pesan TERAKHIR. Offset tidak bisa dipetakan lewat
+	// interface itu, jadi jumlah yang diminta = limit + offset lalu offset
+	// dibuang dari depan di sini. Menelusuri ke belakang tetap benar, dan
+	// tidak perlu menambah method baru ke port.MessageRepo.
+	need := page.Limit + page.Offset
+	ms, err := u.deps.Messages.ListByProject(ctx, p.ID, need)
 	if err != nil {
 		return nil, wrap(err)
 	}
-	return list, nil
+	if page.Offset > 0 {
+		if page.Offset >= len(ms) {
+			return nil, nil
+		}
+		ms = ms[:len(ms)-page.Offset]
+	}
+	if len(ms) > page.Limit {
+		ms = ms[len(ms)-page.Limit:]
+	}
+	return ms, nil
 }
 
 // owned menegakkan policy owner: hanya pemilik (atau admin) yang boleh
@@ -187,7 +220,9 @@ func (u *ChatUsecase) buildContext(ctx context.Context, p *entity.Project, histo
 	b.WriteString("<pesan>\n")
 	b.WriteString(question)
 	b.WriteString("\n</pesan>")
-	return clip(b.String(), ChatMaxTotal)
+	// Sisakan ruang untuk system prompt: hard cap yang dihormati provider
+	// adalah total SEMUA pesan, bukan cuma konteks ini.
+	return clip(b.String(), ChatMaxTotal-ChatSystemReserve)
 }
 
 // clip memotong teks agar tidak melewati batas karakter (bukan byte: potongan

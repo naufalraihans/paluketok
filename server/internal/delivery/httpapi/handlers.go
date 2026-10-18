@@ -227,12 +227,20 @@ func (h *Handlers) GetProject(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	p, err := h.Projects.GetProject(r.Context(), actorFrom(r), ref)
+	actor := actorFrom(r)
+	p, err := h.Projects.GetProject(r.Context(), actor, ref)
 	if err != nil {
 		writeErr(w, r, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, projectDTO(p))
+	d := projectDTO(p)
+	// Ringkasan run terbaru ikut di sini supaya halaman proyek tidak perlu
+	// mengandalkan run id di sessionStorage (proyek dibuka di perangkat lain
+	// tetap tahu progresnya). Gagal baca run tidak boleh menjatuhkan proyek.
+	if run, rerr := h.Runs.LatestRun(r.Context(), actor, p.ID); rerr == nil && run != nil {
+		d["latest_run"] = runDTO(run)
+	}
+	response.JSON(w, http.StatusOK, d)
 }
 
 func (h *Handlers) UpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -423,6 +431,10 @@ func (h *Handlers) SendMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListMessages (GET /v1/projects/{id}/messages): riwayat percakapan urut waktu.
+//
+// limit=/offset= dipakai untuk MENELUSURI riwayat (default 20, cap 100),
+// sedangkan konteks yang dikirim ke model tetap 20 pesan terakhir
+// (usecase.ChatMaxHistory) — dua angka itu memang berbeda urusannya.
 func (h *Handlers) ListMessages(w http.ResponseWriter, r *http.Request) {
 	if h.Chat == nil {
 		writeErr(w, r, usecase.ErrUnavailable)
@@ -432,7 +444,7 @@ func (h *Handlers) ListMessages(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ms, err := h.Chat.ListMessages(r.Context(), actorFrom(r), ref)
+	ms, err := h.Chat.ListMessages(r.Context(), actorFrom(r), ref, pageFrom(r))
 	if err != nil {
 		writeErr(w, r, err)
 		return

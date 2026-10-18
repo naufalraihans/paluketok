@@ -3,20 +3,6 @@
  * Struktur mengikuti blok ber-`data-purpose` di mockup.
  */
 
-export interface SummaryNavItem {
-	label: string;
-	icon: string;
-	/** Angka kecil di kanan (mis. hitungan entitas). Tidak ada di mockup = undefined. */
-	count?: string;
-	active?: boolean;
-}
-
-export interface SummaryTask {
-	label: string;
-	tag: string;
-	assignee: string;
-}
-
 export interface SummaryActivity {
 	/** "09.32" atau "Kemarin". */
 	time: string;
@@ -28,16 +14,12 @@ export interface SummaryContent {
 		title: string;
 		bodyClass: string;
 	};
-	/** Breadcrumb "Proyek / Ruang Ramu [MVP · v0.8]". */
+	/** Breadcrumb "Proyek / Nama Proyek". */
 	breadcrumb: {
 		root: string;
 		project: string;
 		chip: string;
 	};
-	savedAt: string;
-	collaborators: { initials: string; class: string }[];
-	shareLabel: string;
-	exportLabel: string;
 	pageHeader: {
 		eyebrow: string;
 		title: string;
@@ -56,14 +38,20 @@ export interface SummaryContent {
 			note: string;
 		};
 	};
-	/** 4 metrik ringkas. */
+	/**
+	 * 4 metrik ringkas. Blok ini SELALU empat kartu (layout mockup); metrik yang
+	 * tidak bisa dihitung dari artefak tampil sebagai "—" dengan label kosong,
+	 * bukan angka karangan.
+	 */
 	metrics: {
 		value: string;
 		label: string;
 		note: string;
 		icon: string;
+		/** Tahap artefak yang jadi sumber angka ini (untuk membuka dokumennya). */
+		kind?: string;
 	}[];
-	/** Alur keterkaitan 4 tahap: PRD -> Halaman -> Entitas -> Proteksi. */
+	/** Dokumen terbaru per tahap; alur mockup dipertahankan, isinya nyata. */
 	thread: {
 		title: string;
 		link: string;
@@ -74,6 +62,8 @@ export interface SummaryContent {
 			note: string;
 			icon: string;
 			mono?: boolean;
+			/** Artefak yang diwakili simpul ini. */
+			artifactId?: string;
 		}[];
 		connected: string;
 		pending: string;
@@ -85,11 +75,10 @@ export interface SummaryContent {
 		items: { label: string; status: string; ok: boolean }[];
 		link: string;
 	};
-	/** Tugas sebelum review + catatan aktivitas. */
+	/** Aktivitas nyata dari artefak (versi + waktu), bukan feed karangan. */
 	review: {
 		title: string;
 		counter: string;
-		tasks: SummaryTask[];
 		feedTitle: string;
 		activities: SummaryActivity[];
 		feedLink: string;
