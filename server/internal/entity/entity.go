@@ -70,12 +70,12 @@ const (
 
 // Project adalah baris projects (erd.dbml).
 type Project struct {
-	ID        ID
-	OwnerID   ID
-	Name      string
-	Brief     string
-	Stack     Stack
-	Status    ProjectStatus
+	ID      ID
+	OwnerID ID
+	Name    string
+	Brief   string
+	Stack   Stack
+	Status  ProjectStatus
 	// Slug: bagian URL proyek yang enak dibaca (/projects/testing-jembut).
 	// Unik per owner; beku sejak dibuat sehingga tautan yang dibagikan tidak
 	// mati walau nama proyek diubah. Boleh kosong pada baris lama (migrasi

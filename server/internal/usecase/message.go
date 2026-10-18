@@ -106,8 +106,8 @@ func (u *ChatUsecase) SendMessage(ctx context.Context, actor entity.Actor, ref, 
 	}
 
 	req := port.LLMRequest{
-		Slot:       "planner", // slot yang sama dengan penyusun dokumen
-		MaxTokens:  1500,
+		Slot:        "planner", // slot yang sama dengan penyusun dokumen
+		MaxTokens:   1500,
 		Temperature: 0.3,
 		Messages: []port.LLMMessage{
 			{Role: "system", Content: SystemPrompt(p.Name)},

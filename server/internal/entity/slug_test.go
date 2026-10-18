@@ -11,7 +11,7 @@ func TestSlugify(t *testing.T) {
 		{"sudah-slug", "sudah-slug"},
 		{"HurufBesarKecil123", "hurufbesarkecil123"},
 		{"a--b", "a-b"},
-		{"***", ""},          // hanya tanda baca -> kosong, usecase ganti "proyek"
+		{"***", ""},                   // hanya tanda baca -> kosong, usecase ganti "proyek"
 		{"Café Santai", "caf-santai"}, // non-ASCII jadi pemisah, slug tetap ASCII
 		{"", ""},
 	}
