@@ -8,6 +8,7 @@
 	 * halaman lewat callback `onsuggest` supaya sidebar bisa menyorot menunya.
 	 */
 	import Icon from '#lib/components/Icon.svelte';
+	import { mdToHtml } from '#lib/markdown';
 	import {
 		listProjectMessages,
 		sendProjectMessage,
@@ -112,19 +113,37 @@
 
 		{#each messages as m (m.id)}
 			<div class="flex {m.role === 'user' ? 'justify-end' : 'justify-start'}">
-				<div
-					class="rounded-xl px-3 py-2 text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap {m.role ===
-					'user'
-						? 'bg-[#2563EB] text-white'
-						: 'bg-[#F1F5F9] text-[#0F172A]'}"
-				>
-					{m.content}
-					{#if m.suggested_stage}
-						<div class="mt-2 pt-2 border-t border-black/10 text-[11px] opacity-80">
-							Usul tahap berikutnya: <span class="font-semibold">{m.suggested_stage}</span>
+				{#if m.role === 'user'}
+					<div
+						class="rounded-xl px-3 py-2 text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap bg-[#2563EB] text-white"
+					>
+						{m.content}
+					</div>
+				{:else}
+					{@const suggested = m.suggested_stage ? `TAHAP BERIKUTNYA: ${m.suggested_stage}` : ''}
+					<div class="max-w-[85%] min-w-0">
+						<!-- Isi balasan = markdown dari model. Disaring mdToHtml (lihat
+						     lib/markdown.ts): tanpa itu, teks dari brief bisa menyelipkan
+						     HTML dan dieksekusi di browser pembaca. -->
+						<div
+							class="md text-xs leading-relaxed text-[#0F172A]"
+							data-purpose="chat-markdown"
+						>
+							{@html mdToHtml(suggested ? m.content.replace(suggested, '') : m.content)}
 						</div>
-					{/if}
-				</div>
+						{#if m.suggested_stage}
+							<button
+								type="button"
+								onclick={() => onsuggest?.(m.suggested_stage ?? '')}
+								class="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-2.5 py-1 text-[11px] font-medium text-[#475569] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC]"
+								data-purpose="chat-suggested-stage"
+							>
+								<Icon name="sparkles" class="w-3 h-3 text-[#2563EB]" />
+								Lanjut ke {m.suggested_stage}
+							</button>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		{/each}
 	</div>
