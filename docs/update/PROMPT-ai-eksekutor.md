@@ -118,9 +118,16 @@ Selesai kalau satu run penuh tersimpan dengan `kind` sesuai `key` skema, proyek
 
 ## Tiga keputusan pemilik
 
-1. Kredit: `<!-- tetap 1 per run, ATAU ikut jumlah tahap -->`
-2. Susunan usulan judge: `<!-- langsung dipakai, ATAU pengguna boleh ubah dulu -->`
-3. Format tahap karangan: `<!-- dibatasi markdown/tabel/JSON, ATAU bebas -->`
+1. Kredit: **1 kredit untuk semuanya, berapa pun jumlah tahapnya.** Tidak ada
+   hitungan per tahap. Kalau perlu dibatasi, batasi jumlah tahapnya (maksimal
+   12), bukan kreditnya.
+2. Susunan usulan judge: **dibuat layar konfirmasi, pengguna boleh mengubah
+   sebelum mulai.** Alasan: judge hanya dipanggil saat LLM penyusun tidak yakin
+   dan butuh keputusan berbasis statistika. LLM gampang berhalusinasi, jadi
+   usulan judge tetap harus bisa dikoreksi manusia sebelum dipakai.
+3. Format tahap karangan: **dibatasi ke markdown, JSON, dan DBML.** Alasannya:
+   `check_spec` hanya bisa memastikan "ada", tidak bisa memastikan "benar".
+   Membatasi format menjaga jurang mutu itu tetap kecil.
 
 ## Bukti yang harus kamu tempelkan
 
