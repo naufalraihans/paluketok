@@ -1,4 +1,4 @@
-// Upsert artifact pertama per tahap (plan/workflow.md 23): insert artifacts
+// Upsert artifact pertama per tahap (docs/plan/workflow.md 23): insert artifacts
 // + artifact_versions versi 1. Konflik uq_artifacts_run_kind (run diulang
 // setelah restart sebelum sempat selesai) = update konten, versi tetap 1.
 package repository

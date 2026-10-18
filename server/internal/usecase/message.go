@@ -9,7 +9,7 @@
 // streaming dan tidak ada WebSocket.
 //
 // Aturan pembatasan mengikuti kontrak lama `POST /v1/ai/chat`
-// (plan/openapi.md:60) supaya batasnya satu suara untuk seluruh sistem:
+// (docs/plan/openapi.md:60) supaya batasnya satu suara untuk seluruh sistem:
 // 20 pesan terakhir, 4.000 karakter per pesan, 16.000 karakter total.
 package usecase
 
@@ -22,7 +22,7 @@ import (
 	"paluketok/server/internal/port"
 )
 
-// Batas chat (plan/openapi.md:60, dipakai ulang apa adanya).
+// Batas chat (docs/plan/openapi.md:60, dipakai ulang apa adanya).
 const (
 	// ChatMaxContent panjang maksimum satu pesan.
 	ChatMaxContent = 4000

@@ -4,7 +4,8 @@
 //
 // Dua slot dipakai (erd.dbml ai_settings.slot):
 //   - planner -> LLM penyusun enam dokumen planning
-//   - judge   -> gateway JEV (gate keputusan, plan/jev_ai.md)
+//   - judge   -> gateway penilai keputusan (AI judge; JEV hanya salah satu
+//     penyedia. Model & endpoint bebas diisi admin)
 //
 // Keduanya dibaca per panggilan, jadi ganti key dari admin berlaku tanpa restart.
 package main
@@ -56,19 +57,23 @@ func (r resolvedLLM) Complete(ctx context.Context, req port.LLMRequest) (*port.L
 	return r.client.Complete(ctx, cfg, req)
 }
 
-// resolvedJudge: base+key JEV diambil per panggilan dari slot ai_settings,
-// fallback env JEV_BASE_URL/JEV_API_KEY (plan/jev_ai.md bagian 1).
-// Model JEV tetap "jev-latest" (konstanta di adapter, bukan dari DB).
+// resolvedJudge: base+key+MODEL penilai diambil per panggilan dari slot
+// ai_settings, fallback env JEV_BASE_URL/JEV_API_KEY.
+//
+// Model sengaja dibaca dari slot, bukan konstanta: "judge" adalah PERAN
+// (penilai keputusan), bukan produk tertentu. Admin bebas menukar penyedia
+// penilai tanpa perlu deploy ulang. Kalau slot tidak mengisi model, barulah
+// jatuh ke judge.DefaultModel (nilai lama "jev-latest") supaya data lama tetap jalan.
 type resolvedJudge struct {
 	client *judge.Client
 	store  port.AISettingsRepo // nil = pakai env saja
 }
 
 func (r resolvedJudge) Decide(ctx context.Context, req port.JudgeRequest) (*port.JudgeResponse, error) {
-	base, key := "", ""
+	base, key, model := "", "", ""
 	if r.store != nil {
 		if s, err := r.store.Get(ctx, SlotJudge); err == nil && s.BaseURL != "" {
-			base, key = s.BaseURL, s.APIKey
+			base, key, model = s.BaseURL, s.APIKey, s.Model
 		}
 	}
 	if base == "" {
@@ -80,5 +85,6 @@ func (r resolvedJudge) Decide(ctx context.Context, req port.JudgeRequest) (*port
 	// Client tipis per panggilan: http.Client di dalamnya stateless
 	// (transport punya connection pool sendiri), jadi tidak perlu cache.
 	c := judge.New(base, key)
+	c.Model = model
 	return c.Decide(ctx, req)
 }

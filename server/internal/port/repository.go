@@ -1,5 +1,5 @@
 // Package port memuat interface yang dipakai usecase. Implementasinya ada di
-// internal/repository dan internal/adapter (plan/architecture.md bagian 2).
+// internal/repository dan internal/adapter (docs/plan/architecture.md bagian 2).
 //
 // Package ini hanya boleh import entity dan stdlib.
 package port
@@ -12,7 +12,7 @@ import (
 )
 
 // Clock dipakai usecase supaya waktu bisa deterministic saat dites
-// (plan/architecture.md bagian 3).
+// (docs/plan/architecture.md bagian 3).
 type Clock interface {
 	Now() time.Time
 }
@@ -32,7 +32,7 @@ type ProfileRepo interface {
 }
 
 // ProjectRepo adalah akses projects, owner-scoped. Implementasi wajib memfilter
-// owner_id (plan/architecture.md bagian 3).
+// owner_id (docs/plan/architecture.md bagian 3).
 type ProjectRepo interface {
 	Create(ctx context.Context, p *entity.Project) error
 	GetByID(ctx context.Context, id entity.ID) (*entity.Project, error)
@@ -46,7 +46,7 @@ type ProjectRepo interface {
 	ListAll(ctx context.Context, page Page) ([]entity.Project, error)
 	Update(ctx context.Context, p *entity.Project) error
 	// Archive mengubah status menjadi archived, bukan menghapus baris
-	// (plan/erd.md "Aturan status", plan/openapi.md DELETE /v1/projects/{id}).
+	// (docs/plan/erd.md "Aturan status", docs/plan/openapi.md DELETE /v1/projects/{id}).
 	Archive(ctx context.Context, id entity.ID, ownerID entity.ID, now time.Time) error
 }
 
@@ -61,7 +61,7 @@ type RunRepo interface {
 	// (syarat regenerate planner.md bagian 7 dan penjaga worker Fase 6).
 	HasOtherRunning(ctx context.Context, projectID, excludeID entity.ID) (bool, error)
 	// HasRunning true bila project punya run berstatus running
-	// (plan/erd.md: satu run running per project).
+	// (docs/plan/erd.md: satu run running per project).
 	HasRunning(ctx context.Context, projectID entity.ID) (bool, error)
 	Update(ctx context.Context, r *entity.PlanRun) error
 }
@@ -75,7 +75,7 @@ type QueuedRun struct {
 }
 
 // WorkerQueue adalah kumpulan operasi klaim penjadwalan run untuk worker
-// (plan/workflow.md 22, 25; plan/security.md bagian 11). Semua operasi
+// (docs/plan/workflow.md 22, 25; docs/plan/security.md bagian 11). Semua operasi
 // idempoten dan aman terhadap dua worker bersamaan.
 type WorkerQueue interface {
 	// ClaimQueued mengklaim SATU run 'queued' secara atomik:
@@ -86,7 +86,7 @@ type WorkerQueue interface {
 	// pernah mendapat run yang sama.
 	ClaimQueued(ctx context.Context) (*QueuedRun, error)
 	// ListQueued mengembalikan run 'queued' yang belum ter-claim, urut
-	// created_at (plan/security.md 11: start = run queued dimasukkan ulang).
+	// created_at (docs/plan/security.md 11: start = run queued dimasukkan ulang).
 	ListQueued(ctx context.Context) ([]QueuedRun, error)
 	// RequeueRunning menyudahi restart: run 'running' sisa proses mati
 	// ditandai failed dengan error "server_restart", kredit di-refund sekali
@@ -105,7 +105,7 @@ type ArtifactRepo interface {
 	ListLatestByProject(ctx context.Context, projectID entity.ID) ([]entity.Artifact, error)
 	Update(ctx context.Context, a *entity.Artifact) error
 	// InsertVersion menyimpan versi lama sebelum artifacts ditimpa
-	// (plan/erd.md "Aturan versi artefak").
+	// (docs/plan/erd.md "Aturan versi artefak").
 	InsertVersion(ctx context.Context, v *entity.ArtifactVersion) error
 	// HasVersionSet true bila (artifact_id, version) sudah ada di history.
 	// Regenerate memakainya agar tidak menulis ulang versi lama hasil Upsert
@@ -123,7 +123,7 @@ type MessageRepo interface {
 	ListByProject(ctx context.Context, projectID entity.ID, limit int) ([]entity.ProjectMessage, error)
 }
 
-// DecisionRepo mencatat jejak keputusan JEV (plan/planner.md bagian 4).
+// DecisionRepo mencatat jejak keputusan JEV (docs/plan/planner.md bagian 4).
 type DecisionRepo interface {
 	Create(ctx context.Context, d *entity.Decision) error
 	// ListByRun mengembalikan semua keputusan milik satu run, urut waktu
@@ -133,7 +133,7 @@ type DecisionRepo interface {
 	ListAll(ctx context.Context, page Page) ([]entity.Decision, error)
 	// NextRound mengembalikan nomor putaran berikutnya untuk (run_id, stage):
 	// nomor tertinggi sebelumnya + 1, bukan mulai dari 1 lagi
-	// (plan/erd.md "Aturan status", baris decisions).
+	// (docs/plan/erd.md "Aturan status", baris decisions).
 	NextRound(ctx context.Context, runID entity.ID, stage entity.Stage) (int, error)
 }
 
@@ -149,25 +149,25 @@ type OrderRepo interface {
 }
 
 // LedgerRepo memegang transaksi kredit. Transaksi dan SELECT ... FOR UPDATE ada
-// di implementasi repository, bukan di usecase (plan/architecture.md bagian 3).
+// di implementasi repository, bukan di usecase (docs/plan/architecture.md bagian 3).
 type LedgerRepo interface {
 	// Charge mengambil kredit untuk sebuah run: potong saldo, insert ledger,
 	// insert plan_runs, semuanya dalam satu transaksi
-	// (plan/auth_billing.md bagian 3.1).
+	// (docs/plan/auth_billing.md bagian 3.1).
 	ChargeForRun(ctx context.Context, userID entity.ID, run *entity.PlanRun) error
 	// ChargeForRegenerate memotong 1 kredit dan mengembalikan id baris charge
-	// (plan/auth_billing.md bagian 3.4, langkah 1-4).
+	// (docs/plan/auth_billing.md bagian 3.4, langkah 1-4).
 	ChargeForRegenerate(ctx context.Context, userID entity.ID, artifactID entity.ID, charged int) (chargeID entity.ID, err error)
 	// RefundRun me-refund sekali per run. Konflik unique index berarti refund
-	// sudah ada dan bukan error (plan/auth_billing.md bagian 3.2).
+	// sudah ada dan bukan error (docs/plan/auth_billing.md bagian 3.2).
 	RefundRun(ctx context.Context, run *entity.PlanRun, credits int) error
 	// RefundCharge me-refund sekali per baris charge regenerate
-	// (plan/auth_billing.md bagian 3.4, refund).
+	// (docs/plan/auth_billing.md bagian 3.4, refund).
 	RefundCharge(ctx context.Context, userID entity.ID, chargeID entity.ID, credits int) error
 	// Grant menambah kredit oleh admin. Idempoten lewat idempotency_key
 	// (unique index uq_ledger_one_grant_per_key, erd.dbml). Implementasi wajib
 	// memakai SELECT ... FOR UPDATE dan menolak saldo akhir negatif
-	// (plan/security.md bagian 7).
+	// (docs/plan/security.md bagian 7).
 	Grant(ctx context.Context, userID entity.ID, credits int, actorID entity.ID, idempotencyKey string) error
 	// SettleTopUp men-settle order topup dalam satu transaksi: status
 	// pending/expire -> settlement, insert ledger (+credits, reason topup,
@@ -176,7 +176,7 @@ type LedgerRepo interface {
 	SettleTopUp(ctx context.Context, o *entity.Order) error
 }
 
-// RateLimiter membatasi request per user (plan/security.md bagian 8).
+// RateLimiter membatasi request per user (docs/plan/security.md bagian 8).
 type RateLimiter interface {
 	Allow(ctx context.Context, key string) bool
 }

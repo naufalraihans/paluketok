@@ -41,7 +41,7 @@ import (
 	"paluketok/server/internal/port"
 )
 
-// Timeout http.Client Midtrans (plan/structure.md baris 70).
+// Timeout http.Client Midtrans (docs/plan/structure.md baris 70).
 const Timeout = 20 * time.Second
 
 // errMidtrans menandai error dari Midtrans (bukan network): status != 2xx.

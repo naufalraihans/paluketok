@@ -1,7 +1,7 @@
-# Deploy PaluKetok ke VPS (plan/workflow.md langkah 27, plan/deploy.md)
+# Deploy PaluKetok ke VPS (docs/plan/workflow.md langkah 27, plan/deploy.md)
 
 Build di laptop, kirim binary via `scp`, jalan sebagai service `systemd`.
-Jangan Docker (plan/deploy.md). Domain `paluketok.web.id` + TLS Caddy menunggu
+Jangan Docker (docs/plan/deploy.md). Domain `paluketok.web.id` + TLS Caddy menunggu
 langkah DNS (terpisah, butuh keputusan Master).
 
 ## 1. Build
@@ -22,7 +22,7 @@ scp paluketok deploy/paluketok.service root@<VPS>:/tmp/
 ## 3. Pasang di VPS
 
 ```bash
-# user service khusus, bukan root (plan/security.md)
+# user service khusus, bukan root (docs/plan/security.md)
 sudo useradd --system --home /opt/paluketok --shell /usr/sbin/nologin paluketok || true
 sudo mkdir -p /opt/paluketok /etc/paluketok
 sudo mv /tmp/paluketok /opt/paluketok/paluketok

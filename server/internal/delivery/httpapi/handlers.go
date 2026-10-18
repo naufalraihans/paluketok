@@ -1,6 +1,6 @@
 // Package httpapi merangkai delivery HTTP Fase 5 (workflow.md 18-21):
 // DTO, handler, route. Handler TIDAK memanggil repository/adapter langsung —
-// lewat usecase (plan/structure.md aturan dependency).
+// lewat usecase (docs/plan/structure.md aturan dependency).
 package httpapi
 
 import (

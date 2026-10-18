@@ -1,6 +1,6 @@
 // Package repository mengimplementasikan port repository dengan pgx.
 // Semua query lewat service role: filter owner/user manual ada di usecase
-// lapis 2 dan di query list/owner (plan/security.md bagian 3).
+// lapis 2 dan di query list/owner (docs/plan/security.md bagian 3).
 package repository
 
 import (

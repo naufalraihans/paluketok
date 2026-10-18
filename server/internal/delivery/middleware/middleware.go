@@ -1,4 +1,4 @@
-// Rantai middleware Fase 5 (plan/workflow.md 19, plan/security.md):
+// Rantai middleware Fase 5 (docs/plan/workflow.md 19, docs/plan/security.md):
 // Recover -> RequestID/Log -> CORS -> BodyLimit -> JWT -> Admin -> RateLimit.
 package middleware
 

@@ -11,7 +11,7 @@ import (
 )
 
 // ProjectUsecase menangani CRUD project. Semua operasi owner-scoped:
-// plan/roles.md (user: CRUD milik sendiri) dan plan/architecture.md bagian 3.
+// docs/plan/roles.md (user: CRUD milik sendiri) dan docs/plan/architecture.md bagian 3.
 type ProjectUsecase struct {
 	deps Deps
 }
@@ -27,7 +27,7 @@ func NewProjectUsecase(d Deps) *ProjectUsecase {
 }
 
 // CreateProjectInput adalah input pembuatan project
-// (plan/openapi.md POST /v1/projects: name, brief, stack).
+// (docs/plan/openapi.md POST /v1/projects: name, brief, stack).
 type CreateProjectInput struct {
 	Name  string
 	Brief string
@@ -35,7 +35,7 @@ type CreateProjectInput struct {
 }
 
 // CreateProject membuat project milik actor. Actor datang dari JWT claim,
-// bukan dari body (plan/roles.md "Aturan").
+// bukan dari body (docs/plan/roles.md "Aturan").
 func (u *ProjectUsecase) CreateProject(ctx context.Context, actor entity.Actor, in CreateProjectInput) (*entity.Project, error) {
 	if actor.UserID == "" {
 		return nil, ErrForbidden
@@ -147,7 +147,7 @@ func (u *ProjectUsecase) resolveProject(ctx context.Context, actor entity.Actor,
 	p, err := u.deps.Projects.GetBySlug(ctx, actor.UserID, ref)
 	if errors.Is(err, port.ErrNotFound) && !actor.IsAdmin {
 		// Bukan miliknya. Cari tanpa filter owner: kalau ada milik user lain,
-		// balas 403 (plan/security.md: 403, bukan 404); kalau tidak ada sama
+		// balas 403 (docs/plan/security.md: 403, bukan 404); kalau tidak ada sama
 		// sekali, 404.
 		if _, gerr := u.deps.Projects.GetBySlug(ctx, "", ref); gerr == nil {
 			return nil, ErrForbidden
@@ -225,7 +225,7 @@ func (u *ProjectUsecase) UpdateProject(ctx context.Context, actor entity.Actor, 
 }
 
 // ArchiveProject menandai project archived. Bukan hapus baris
-// (plan/erd.md "Aturan status", plan/openapi.md DELETE /v1/projects/{id}).
+// (docs/plan/erd.md "Aturan status", docs/plan/openapi.md DELETE /v1/projects/{id}).
 func (u *ProjectUsecase) ArchiveProject(ctx context.Context, actor entity.Actor, id entity.ID) error {
 	if _, err := u.ownedProject(ctx, actor, id); err != nil {
 		return err
@@ -234,7 +234,7 @@ func (u *ProjectUsecase) ArchiveProject(ctx context.Context, actor entity.Actor,
 }
 
 // ownedProject mengambil project lalu memastikan actornya pemilik atau admin.
-// Admin boleh membaca semua (plan/roles.md matriks izin).
+// Admin boleh membaca semua (docs/plan/roles.md matriks izin).
 func (u *ProjectUsecase) ownedProject(ctx context.Context, actor entity.Actor, id entity.ID) (*entity.Project, error) {
 	if actor.UserID == "" {
 		return nil, ErrForbidden

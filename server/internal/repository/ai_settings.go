@@ -1,5 +1,5 @@
 // Repo ai_settings (erd.dbml 158-170): slot unik, api_key plaintext di DB
-// (keputusan plan/openapi.md - GET mengirim masked lewat usecase).
+// (keputusan docs/plan/openapi.md - GET mengirim masked lewat usecase).
 package repository
 
 import (

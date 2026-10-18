@@ -101,7 +101,7 @@ func TestGetProject_OwnerCheck(t *testing.T) {
 	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: userB}, string(p.ID)); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("user lain harus ErrForbidden, dapat %v", err)
 	}
-	// admin: boleh baca semua (plan/roles.md)
+	// admin: boleh baca semua (docs/plan/roles.md)
 	if _, err := uc.GetProject(context.Background(), entity.Actor{UserID: admin, IsAdmin: true}, string(p.ID)); err != nil {
 		t.Fatalf("admin harus boleh, dapat %v", err)
 	}

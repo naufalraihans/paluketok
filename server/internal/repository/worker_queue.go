@@ -1,5 +1,5 @@
-// Operasi antrean worker untuk plan_runs (plan/workflow.md 22, 25;
-// plan/security.md bagian 11). Klaim atomik dengan FOR UPDATE SKIP LOCKED:
+// Operasi antrean worker untuk plan_runs (docs/plan/workflow.md 22, 25;
+// docs/plan/security.md bagian 11). Klaim atomik dengan FOR UPDATE SKIP LOCKED:
 // dua worker tidak pernah mendapat run yang sama.
 package repository
 
@@ -42,7 +42,7 @@ func (r *RunRepo) ClaimQueued(ctx context.Context) (*port.QueuedRun, error) {
 }
 
 // ListQueued mengembalikan run 'queued' urut created_at untuk pemanasan
-// antrean in-memory saat start (plan/security.md bagian 11).
+// antrean in-memory saat start (docs/plan/security.md bagian 11).
 func (r *RunRepo) ListQueued(ctx context.Context) ([]port.QueuedRun, error) {
 	rows, err := r.db.Query(ctx, `
 		select id, project_id, user_id from plan_runs

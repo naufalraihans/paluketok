@@ -78,3 +78,47 @@ func TestTimeout_Konstanta30(t *testing.T) {
 		t.Fatalf("timeout judge harus 30s, dapat %v", Timeout)
 	}
 }
+
+// TestDecide_ModelDariSlot: "judge" adalah peran penilai, bukan produk. Model
+// yang dikirim ke penyedia harus ikut nilai slot, bukan konstanta "jev-latest".
+// Kalau ini rusak, admin ganti penyedia penilai tapi permintaan tetap memakai
+// model lama, dan panggilannya gagal tanpa sebab yang jelas di panel.
+func TestDecide_ModelDariSlot(t *testing.T) {
+	var dikirim any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		dikirim = body["model"]
+		w.Write([]byte(`{"id":"d","model":"x","answers":{}}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "k")
+	c.Model = "penilai-baru-1"
+	if _, err := c.Decide(context.Background(), port.JudgeRequest{}); err != nil {
+		t.Fatalf("decide: %v", err)
+	}
+	if dikirim != "penilai-baru-1" {
+		t.Fatalf("model dari slot tidak dipakai, terkirim: %v", dikirim)
+	}
+}
+
+// TestDecide_ModelKosongJatuhKeDefault: slot lama tanpa model harus tetap jalan.
+func TestDecide_ModelKosongJatuhKeDefault(t *testing.T) {
+	var dikirim any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		dikirim = body["model"]
+		w.Write([]byte(`{"id":"d","model":"x","answers":{}}`))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "k") // Model sengaja dibiarkan kosong
+	if _, err := c.Decide(context.Background(), port.JudgeRequest{}); err != nil {
+		t.Fatalf("decide: %v", err)
+	}
+	if dikirim != DefaultModel {
+		t.Fatalf("model kosong harus jatuh ke %q, terkirim: %v", DefaultModel, dikirim)
+	}
+}

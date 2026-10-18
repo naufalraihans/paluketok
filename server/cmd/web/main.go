@@ -1,4 +1,4 @@
-// Command web: composition root PaluKetok server (plan/workflow.md 20).
+// Command web: composition root PaluKetok server (docs/plan/workflow.md 20).
 // config -> pool -> repos+adapter -> usecases -> router -> http.Server.
 package main
 

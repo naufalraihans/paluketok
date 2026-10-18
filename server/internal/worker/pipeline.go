@@ -1,4 +1,4 @@
-// Pipeline 6 tahap (plan/planner.md bagian 1-5, plan/workflow.md 23):
+// Pipeline 6 tahap (docs/plan/planner.md bagian 1-5, docs/plan/workflow.md 23):
 // per tahap: tulis current_stage di AWAL -> prompt (brief + artefak
 // sebelumnya) -> LLM -> validasi (gagal = retry dengan pesan error, maks 2
 // percobaan total per planner.md 5 "Coba ulang ... Maks 2 kali") -> simpan
@@ -16,7 +16,7 @@ import (
 	"paluketok/server/internal/port"
 )
 
-// stageTimeout per tahap dari plan/structure.md ("timeout per dependensi":
+// stageTimeout per tahap dari docs/plan/structure.md ("timeout per dependensi":
 // LLM 180 detik).
 const stageTimeout = 180 * time.Second
 

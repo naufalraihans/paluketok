@@ -26,7 +26,7 @@ func (u *RunUsecase) ids() IDGenerator { return u.deps.IDs }
 
 // CreateRun memulai run baru untuk project: cek owner, cek satu-running,
 // lalu potong 1 kredit dalam satu transaksi di repository
-// (plan/auth_billing.md 3.1 urutan FOR UPDATE -> cek -> insert run -> ledger).
+// (docs/plan/auth_billing.md 3.1 urutan FOR UPDATE -> cek -> insert run -> ledger).
 func (u *RunUsecase) CreateRun(ctx context.Context, actor entity.Actor, projectID entity.ID) (*entity.PlanRun, error) {
 	if actor.UserID == "" {
 		return nil, ErrForbidden

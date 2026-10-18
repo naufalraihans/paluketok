@@ -10,7 +10,7 @@ import (
 	"unicode"
 )
 
-// Batas panjang dari plan/security.md bagian 4 dan plan/erd.dbml.
+// Batas panjang dari docs/plan/security.md bagian 4 dan docs/plan/erd.dbml.
 const (
 	MaxNameLen       = 120
 	MaxBriefLen      = 8000
@@ -20,7 +20,7 @@ const (
 	SlugMaxLen       = 60
 )
 
-// uuidRe memvalidasi bentuk UUID sebelum query (plan/security.md bagian 4:
+// uuidRe memvalidasi bentuk UUID sebelum query (docs/plan/security.md bagian 4:
 // "run_id, artifact_id, order_id | UUID valid, cek format sebelum query").
 var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
@@ -48,7 +48,7 @@ func ValidBaseURLAllowlist(raw string) error {
 }
 
 // ErrValidation membungkus pesan validasi. Pesan TIDAK boleh membocorkan nama
-// tabel atau query (plan/security.md bagian 4).
+// tabel atau query (docs/plan/security.md bagian 4).
 type ErrValidation struct{ Msg string }
 
 func (e *ErrValidation) Error() string { return e.Msg }
@@ -58,7 +58,7 @@ func invalid(format string, args ...any) error {
 }
 
 // NormalizeName memangkas dan memvalidasi projects.name: 1-120 karakter, tanpa
-// karakter kontrol (plan/security.md bagian 4).
+// karakter kontrol (docs/plan/security.md bagian 4).
 func NormalizeName(raw string) (string, error) {
 	name := strings.TrimSpace(raw)
 	if name == "" {
@@ -127,13 +127,13 @@ func ValidateBrief(raw string) error {
 }
 
 // stackKeys adalah key yang diizinkan di projects.stack
-// (plan/security.md bagian 4: key hanya fe, be, db, payment).
+// (docs/plan/security.md bagian 4: key hanya fe, be, db, payment).
 var stackKeys = map[string]bool{"fe": true, "be": true, "db": true, "payment": true}
 
 // DecodeStack mem-parse projects.stack dengan menolak key tak dikenal
-// (plan/security.md bagian 4). Nilai kosong berarti stack tidak diisi.
+// (docs/plan/security.md bagian 4). Nilai kosong berarti stack tidak diisi.
 //
-// Catatan: daftar nilai yang diizinkan ("whitelist enum") belum ada di plan/;
+// Catatan: daftar nilai yang diizinkan ("whitelist enum") belum ada di docs/plan/;
 // yang ditegakkan di sini hanya nama key dan bentuk nilai. Lihat laporan.
 func DecodeStack(raw json.RawMessage) (Stack, error) {
 	if len(raw) == 0 {

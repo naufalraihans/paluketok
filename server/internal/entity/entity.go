@@ -1,7 +1,7 @@
 // Package entity memuat struct dan aturan domain PaluKetok.
 //
-// Aturan dependency (plan/architecture.md bagian 2): package ini HANYA boleh
-// import stdlib. Sumber bentuk struct: plan/erd.dbml.
+// Aturan dependency (docs/plan/architecture.md bagian 2): package ini HANYA boleh
+// import stdlib. Sumber bentuk struct: docs/plan/erd.dbml.
 package entity
 
 import (
@@ -14,7 +14,7 @@ import (
 type ID string
 
 // Actor adalah pelaku request, diambil dari JWT claim lalu diverifikasi ke
-// profiles di server (plan/architecture.md bagian 3). Tidak pernah dari body.
+// profiles di server (docs/plan/architecture.md bagian 3). Tidak pernah dari body.
 type Actor struct {
 	UserID  ID
 	IsAdmin bool
@@ -32,7 +32,7 @@ const (
 )
 
 // Profile adalah baris profiles (erd.dbml). credits + token_version hanya
-// boleh diubah server (plan/security.md bagian 3).
+// boleh diubah server (docs/plan/security.md bagian 3).
 type Profile struct {
 	ID           ID
 	Username     *string
@@ -46,7 +46,7 @@ type Profile struct {
 }
 
 // Stack adalah isi projects.stack (jsonb): {fe, be, db, payment}
-// (erd.dbml baris 29, plan/security.md bagian 4).
+// (erd.dbml baris 29, docs/plan/security.md bagian 4).
 type Stack struct {
 	FE      string `json:"fe,omitempty"`
 	BE      string `json:"be,omitempty"`
@@ -85,7 +85,7 @@ type Project struct {
 	UpdatedAt time.Time
 }
 
-// Stage adalah enam tahap planner (plan/planner.md bagian 2). Dipakai untuk
+// Stage adalah enam tahap planner (docs/plan/planner.md bagian 2). Dipakai untuk
 // plan_runs.current_stage, artifacts.kind, dan decisions.stage.
 type Stage string
 
@@ -99,7 +99,7 @@ const (
 )
 
 // Stages adalah urutan tetap pipeline. Tahap berikutnya selalu memakai hasil
-// tahap sebelumnya (plan/planner.md bagian 2).
+// tahap sebelumnya (docs/plan/planner.md bagian 2).
 var Stages = []Stage{
 	StagePRD, StageERD, StageOpenAPI, StageRoles, StageSecurity, StageStructure,
 }
@@ -148,7 +148,7 @@ const (
 )
 
 // Artifact adalah baris artifacts (erd.dbml). version + content selalu versi
-// terbaru (plan/erd.md "Aturan versi artefak").
+// terbaru (docs/plan/erd.md "Aturan versi artefak").
 type Artifact struct {
 	ID        ID
 	RunID     ID
@@ -189,7 +189,7 @@ type ArtifactVersion struct {
 	CreatedAt      time.Time
 }
 
-// Gate mengikuti CHECK decisions.gate (erd.dbml) dan plan/planner.md bagian 4.
+// Gate mengikuti CHECK decisions.gate (erd.dbml) dan docs/plan/planner.md bagian 4.
 type Gate string
 
 const (
@@ -198,11 +198,11 @@ const (
 	GateEscalate       Gate = "ESCALATE"
 )
 
-// MaxGateRounds adalah batas putaran GATHER_EVIDENCE (plan/planner.md bagian 4).
+// MaxGateRounds adalah batas putaran GATHER_EVIDENCE (docs/plan/planner.md bagian 4).
 const MaxGateRounds = 4
 
 // Decision adalah baris decisions (erd.dbml). state dan criteria jsonb mentah:
-// ke klien hanya dikirim ringkasan (plan/openapi.md bagian AI).
+// ke klien hanya dikirim ringkasan (docs/plan/openapi.md bagian AI).
 type Decision struct {
 	ID            ID
 	RunID         ID
@@ -232,7 +232,7 @@ const (
 
 // Order adalah baris orders (erd.dbml). Sumber kedaluwarsa adalah expired_date
 // dari respons gateway (Midtrans Snap), bukan timer sendiri
-// (plan/auth_billing.md bagian 2.4).
+// (docs/plan/auth_billing.md bagian 2.4).
 type Order struct {
 	ID             ID
 	UserID         ID
@@ -276,7 +276,7 @@ const (
 )
 
 // Ledger adalah baris credits_ledger (erd.dbml). Append-only: tidak ada UPDATE
-// atau DELETE pada barisnya (plan/erd.md "Aturan kredit").
+// atau DELETE pada barisnya (docs/plan/erd.md "Aturan kredit").
 type Ledger struct {
 	ID             ID
 	UserID         ID
@@ -290,7 +290,7 @@ type Ledger struct {
 }
 
 // NewPlanRun membuat run baru dengan nilai awal sesuai erd.dbml dan
-// plan/auth_billing.md bagian 3.1 (status queued, total 6, credits_charged 1).
+// docs/plan/auth_billing.md bagian 3.1 (status queued, total 6, credits_charged 1).
 func NewPlanRun(id, projectID, userID ID, now time.Time) *PlanRun {
 	return &PlanRun{
 		ID:             id,

@@ -1,4 +1,4 @@
-// Test worker dengan mock penuh (plan/workflow.md 22-25, tanpa layanan live):
+// Test worker dengan mock penuh (docs/plan/workflow.md 22-25, tanpa layanan live):
 // - klaim atomik dua worker, antrean penuh 503
 // - pipeline 6 tahap urut, gagal validasi 2x = failed + refund 1x, replay no-op
 // - gate JEV tiga jalur (mock)

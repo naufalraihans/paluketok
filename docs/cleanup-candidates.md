@@ -70,10 +70,10 @@ Sudah dikerjakan seluruhnya di Fase 8, lihat "Perbaikan lint Fase 8" di atas. `s
 
 | Lokasi | Fakta | Kenapa dipertahankan |
 |---|---|---|
-| `internal/delivery/middleware/middleware.go:181` `RateLimit` + `:162 rateLimiter` | 0 pemanggilan di `router.go` | Bukan dead code. Diwajibkan `plan/security.md` bagian 8 (per user 5/menit `POST /runs`, 60/menit endpoint lain, 30/menit admin). Yang kurang adalah **wiring**, bukan fungsinya. Hapus = menghapus kewajiban keamanan |
+| `internal/delivery/middleware/middleware.go:181` `RateLimit` + `:162 rateLimiter` | 0 pemanggilan di `router.go` | Bukan dead code. Diwajibkan `docs/plan/security.md` bagian 8 (per user 5/menit `POST /runs`, 60/menit endpoint lain, 30/menit admin). Yang kurang adalah **wiring**, bukan fungsinya. Hapus = menghapus kewajiban keamanan |
 | `internal/port/repository.go:158` `RateLimiter` | 0 referensi langsung | Kontrak port untuk `RateLimit` di atas |
 | `internal/port/repository.go:75` `WorkerQueue` | 0 referensi langsung | Kontrak port; implementasi di `repository/worker_queue.go` |
-| `pkg/response/response.go:71` `FailInternal` | 0 pemanggilan langsung (dipakai lewat jalur 500 di `handlers.go:36 writeErr`) | Menegakkan `plan/security.md` bagian 10: `500` hanya `{"error":{"code":"internal",...}}`, tanpa stack trace |
+| `pkg/response/response.go:71` `FailInternal` | 0 pemanggilan langsung (dipakai lewat jalur 500 di `handlers.go:36 writeErr`) | Menegakkan `docs/plan/security.md` bagian 10: `500` hanya `{"error":{"code":"internal",...}}`, tanpa stack trace |
 | `internal/entity/validate.go:97,126` `DecodeStack`/`EncodeStack` | 0 pemanggilan langsung | Dipakai lapisan repository saat encode/decode kolom stack |
 | `internal/worker/pipeline.go:138 Stop` | 0 pemanggilan | shutdown pool; dijalankan saat drain, dicek lewat `pool.go:170 deadline2` |
 | `internal/worker/pipeline.go:62 Process` | bukan nol | Dipakai API callback worker, bukan dari paket lain |

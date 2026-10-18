@@ -10,7 +10,7 @@ import { goto } from '$app/navigation';
 
 export const API_BASE: string = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
 
-/** Error API dengan kode sesuai plan/openapi.md bagian Error. */
+/** Error API dengan kode sesuai docs/plan/openapi.md bagian Error. */
 export class ApiError extends Error {
 	code: string;
 	status: number;

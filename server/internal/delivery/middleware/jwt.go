@@ -1,4 +1,4 @@
-// Verifikasi JWT Supabase via JWKS (plan/security.md bagian 2).
+// Verifikasi JWT Supabase via JWKS (docs/plan/security.md bagian 2).
 // Allowlist alg RS256/ES256, kid matching + refresh berbatas, cek iss/aud/exp.
 // Tanpa SUPABASE_JWT_SECRET (plan melarang; verifikasi asimetris).
 package middleware

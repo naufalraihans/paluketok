@@ -12,7 +12,7 @@ type LLMMessage struct {
 }
 
 // LLMRequest adalah satu panggilan generasi. Slot menunjuk baris ai_settings
-// (plan/planner.md bagian 9); nilainya dari DB, bukan dari klien.
+// (docs/plan/planner.md bagian 9); nilainya dari DB, bukan dari klien.
 type LLMRequest struct {
 	Slot        string
 	Messages    []LLMMessage
@@ -35,12 +35,12 @@ type LLMResponse struct {
 }
 
 // LLM adalah client OpenAI-compatible. Timeout 180 detik ada di adapter
-// (plan/structure.md "Sumber tunggal angka timeout adapter").
+// (docs/plan/structure.md "Sumber tunggal angka timeout adapter").
 type LLM interface {
 	Complete(ctx context.Context, req LLMRequest) (*LLMResponse, error)
 }
 
-// JudgeQuestion adalah satu pertanyaan untuk JEV (plan/jev_ai.md).
+// JudgeQuestion adalah satu pertanyaan untuk JEV (docs/plan/jev_ai.md).
 type JudgeQuestion struct {
 	ID           string
 	Type         string // "choice" | "noul" | "score"
@@ -49,7 +49,7 @@ type JudgeQuestion struct {
 }
 
 // JudgeRequest adalah satu panggilan gate JEV. State ringkas, bukan repository
-// penuh (plan/planner.md bagian 4).
+// penuh (docs/plan/planner.md bagian 4).
 type JudgeRequest struct {
 	State     any
 	Questions []JudgeQuestion
@@ -74,7 +74,7 @@ type JudgeResponse struct {
 }
 
 // Judge adalah client gateway JEV. Timeout 30 detik, tanpa auto-retry
-// (plan/planner.md bagian 4, plan/jev_ai.md).
+// (docs/plan/planner.md bagian 4, docs/plan/jev_ai.md).
 type Judge interface {
 	Decide(ctx context.Context, req JudgeRequest) (*JudgeResponse, error)
 }
@@ -117,7 +117,7 @@ type PaymentResponse struct {
 }
 
 // Payment adalah client gateway pembayaran. Timeout 20 detik, tanpa auto-retry
-// (plan/security.md bagian 6).
+// (docs/plan/security.md bagian 6).
 type Payment interface {
 	CreateOrder(ctx context.Context, req PaymentRequest) (*PaymentResponse, error)
 }
@@ -195,14 +195,14 @@ type NotificationParser interface {
 // Jenis error adapter yang harus dikenali usecase. Adapter membungkus error
 // transport/SDK-nya ke salah satu ini supaya usecase tidak tahu SDK.
 var (
-	// ErrInsufficientCredits dipetakan ke 402 (plan/openapi.md bagian Error).
+	// ErrInsufficientCredits dipetakan ke 402 (docs/plan/openapi.md bagian Error).
 	ErrInsufficientCredits = errKind("insufficient credits")
 	// ErrNotFound dipetakan ke 404.
 	ErrNotFound = errKind("not found")
 	// ErrConflict dipetakan ke 409, mis. unique index kredit.
 	ErrConflict = errKind("conflict")
 	// ErrUnavailable dipetakan ke 503, mis. key LLM belum diisi admin
-	// (plan/openapi.md bagian AI).
+	// (docs/plan/openapi.md bagian AI).
 	ErrUnavailable = errKind("unavailable")
 	// ErrForbidden dipetakan ke 403, mis. owner check gagal.
 	ErrForbidden = errKind("forbidden")

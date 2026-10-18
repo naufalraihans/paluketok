@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-// Kode error mengikuti plan/openapi.md bagian Error.
+// Kode error mengikuti docs/plan/openapi.md bagian Error.
 const (
 	CodeUnauthorized       = "unauthorized"
 	CodeForbidden          = "forbidden"

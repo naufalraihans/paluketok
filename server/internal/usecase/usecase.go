@@ -1,5 +1,5 @@
 // Package usecase memuat logika bisnis PaluKetok. Package ini tidak boleh
-// import pgx, gorm, net/http, atau delivery/* (plan/architecture.md bagian 2).
+// import pgx, gorm, net/http, atau delivery/* (docs/plan/architecture.md bagian 2).
 package usecase
 
 import (
@@ -19,7 +19,7 @@ type ProjectResolver interface {
 }
 
 // Deps adalah dependensi bersama semua usecase. Semua lewat port, sehingga
-// usecase bisa dites tanpa DB dan tanpa HTTP (plan/architecture.md bagian 4).
+// usecase bisa dites tanpa DB dan tanpa HTTP (docs/plan/architecture.md bagian 4).
 type Deps struct {
 	Profiles  port.ProfileRepo
 	Projects  port.ProjectRepo
@@ -52,7 +52,7 @@ type IDGenerator interface {
 }
 
 // ErrForbidden dibalas 403. Owner check ada di usecase, bukan handler
-// (plan/architecture.md bagian 3).
+// (docs/plan/architecture.md bagian 3).
 var ErrForbidden = errors.New("forbidden")
 
 // ErrNotFound dibalas 404.
@@ -61,7 +61,7 @@ var ErrNotFound = errors.New("not found")
 // ErrValidation dibalas 422.
 var ErrValidation = errors.New("validation")
 
-// ErrInsufficientCredits dibalas 402 (plan/openapi.md bagian Error).
+// ErrInsufficientCredits dibalas 402 (docs/plan/openapi.md bagian Error).
 var ErrInsufficientCredits = errors.New("insufficient credits")
 
 // ErrConflict dibalas 409.

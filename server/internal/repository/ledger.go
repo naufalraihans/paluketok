@@ -11,7 +11,7 @@ import (
 
 // LedgerRepo memegang semua perubahan kredit. SETIAP perubahan dalam satu
 // transaksi: SELECT ... FOR UPDATE pada profiles -> tulis ledger -> update
-// saldo (plan/security.md bagian 7, auth_billing.md bagian 3).
+// saldo (docs/plan/security.md bagian 7, auth_billing.md bagian 3).
 type LedgerRepo struct{ db dbtx }
 
 const insertLedgerSQL = `insert into credits_ledger

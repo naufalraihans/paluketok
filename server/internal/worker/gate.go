@@ -1,4 +1,4 @@
-// Gate JEV (plan/planner.md bagian 4): dipanggil hanya di titik ragu.
+// Gate JEV (docs/plan/planner.md bagian 4): dipanggil hanya di titik ragu.
 // >= 0.90 EXECUTE; 0.50-0.89 GATHER (tambah evidence, maks 4 putaran);
 // < 0.50 atau putaran ke-4 masih < 0.90 = ESCALATE (run lanjut, default stack).
 // Timeout 30s dan tanpa retry ada di adapter judge; timeout dianggap ESCALATE.

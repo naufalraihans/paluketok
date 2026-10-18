@@ -1,4 +1,4 @@
-// Prompt per tahap (plan/planner.md bagian 3): [sistem] peran+aturan format,
+// Prompt per tahap (docs/plan/planner.md bagian 3): [sistem] peran+aturan format,
 // [data] brief + artefak sebelumnya dalam blok tag, [tugas] instruksi tahap.
 // Charter per tahap dari planner.md bagian 3 (docs/agents/*.md sebagai label
 // peran, tidak mengikat path). retryErr ditambahkan ke [tugas] saat retry.

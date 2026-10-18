@@ -1,5 +1,5 @@
 // Package llm client OpenAI-compatible (POST {base_url}/chat/completions).
-// Timeout 180 detik, tanpa auto-retry (plan/structure.md, plan/jev_ai.md).
+// Timeout 180 detik, tanpa auto-retry (docs/plan/structure.md, docs/plan/jev_ai.md).
 // Kredensial per slot: base_url + api_key + model dari baris ai_settings
 // (dibaca penelepon, bukan dari sini).
 package llm
@@ -18,7 +18,7 @@ import (
 	"paluketok/server/internal/port"
 )
 
-// Timeout http.Client LLM (plan/structure.md baris 70).
+// Timeout http.Client LLM (docs/plan/structure.md baris 70).
 const Timeout = 180 * time.Second
 
 // Config satu slot dari ai_settings (erd.dbml 158-170).
@@ -47,7 +47,7 @@ func IsUnavailable(err error) bool {
 type Client struct{ http *http.Client }
 
 // New client LLM. CheckRedirect menolak redirect lintas host
-// (plan/security.md tabel 72, checklist 13 butir 5): base_url dicuri lewat
+// (docs/plan/security.md tabel 72, checklist 13 butir 5): base_url dicuri lewat
 // redirect open-redirect tidak mungkin.
 func New() *Client {
 	return &Client{http: &http.Client{

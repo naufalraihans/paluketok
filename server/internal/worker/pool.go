@@ -1,4 +1,4 @@
-// Worker pool (plan/workflow.md 22, plan/security.md bagian 8 & 11):
+// Worker pool (docs/plan/workflow.md 22, docs/plan/security.md bagian 8 & 11):
 // pool 4 goroutine, antrean in-memory 20 slot, penuh = 503 (ErrUnavailable).
 // Klaim run lewat DB (FOR UPDATE SKIP LOCKED) - dua worker tak pernah dapat
 // run sama. Start: run 'queued' diulang; run 'running' ditandai failed
@@ -16,7 +16,7 @@ import (
 	"paluketok/server/internal/port"
 )
 
-// Angka awal plan/security.md bagian 8 dan planner.md bagian 8.
+// Angka awal docs/plan/security.md bagian 8 dan planner.md bagian 8.
 const (
 	PoolSize      = 4
 	QueueSize     = 20

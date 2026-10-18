@@ -1,4 +1,4 @@
-// Route Fase 5: net/http stdlib ServeMux (plan/structure.md "Router").
+// Route Fase 5: net/http stdlib ServeMux (docs/plan/structure.md "Router").
 // Semua endpoint openapi.md bagian user terdaftar. Endpoint admin F7.
 package httpapi
 
@@ -31,7 +31,7 @@ type RouterOptions struct {
 	ActorFix entity.Actor
 }
 
-// NewRouter merangkai mux + middleware berurutan (plan/workflow.md 19):
+// NewRouter merangkai mux + middleware berurutan (docs/plan/workflow.md 19):
 // Recover -> RequestID -> CORS -> BodyLimit -> (JWT per route) -> handler.
 func NewRouter(o RouterOptions) http.Handler {
 	mux := http.NewServeMux()

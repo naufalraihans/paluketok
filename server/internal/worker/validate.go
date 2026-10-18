@@ -1,4 +1,4 @@
-// Validasi format output per tahap (plan/planner.md bagian 2 dan 5):
+// Validasi format output per tahap (docs/plan/planner.md bagian 2 dan 5):
 // 1) kosong/panjang, 2) format (parse DBML/JSON/section markdown),
 // 3) konsistensi lintas artefak. Pesan error dipakai ulang untuk retry prompt.
 package worker

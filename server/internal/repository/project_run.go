@@ -211,7 +211,7 @@ func (r *RunRepo) HasRunning(ctx context.Context, projectID entity.ID) (bool, er
 }
 
 // HasOtherRunning sama tapi mengecualikan satu run (worker memeriksa
-// saingan selain run yang sedang diproses; plan/planner.md bagian 8).
+// saingan selain run yang sedang diproses; docs/plan/planner.md bagian 8).
 func (r *RunRepo) HasOtherRunning(ctx context.Context, projectID, excludeID entity.ID) (bool, error) {
 	var n int
 	err := r.db.QueryRow(ctx,
@@ -237,7 +237,7 @@ func (r *RunRepo) Update(ctx context.Context, run *entity.PlanRun) error {
 }
 
 // PatchProgress memperbarui status + current_stage + progress saja
-// (plan/planner.md bagian 1 langkah a0/f). Dipakai worker tiap tahap.
+// (docs/plan/planner.md bagian 1 langkah a0/f). Dipakai worker tiap tahap.
 func (r *RunRepo) PatchProgress(ctx context.Context, id entity.ID, stage entity.Stage, progress int, status entity.RunStatus) error {
 	tag, err := r.db.Exec(ctx,
 		`update plan_runs set status=$2, current_stage=$3, progress=$4 where id=$1`,

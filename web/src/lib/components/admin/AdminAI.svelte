@@ -9,7 +9,8 @@
 
 	// Tab AI Settings: dua slot di ai_settings (SlotLLM + SlotJudge di BE).
 	//   planner = LLM penyusun enam dokumen planning
-	//   judge   = gateway JEV (gate keputusan; model dikunci "jev-latest")
+	//   judge   = gateway penilai keputusan (AI judge; model & endpoint apa pun,
+	//             bukan cuma JEV. JEV cuma salah satu penyedianya)
 	// PUT tanpa api_key berarti memakai key tersimpan (mask tak boleh dikirim balik).
 	const SLOTS: { id: string; label: string; hint: string; modelLocked: boolean }[] = [
 		{
@@ -20,13 +21,15 @@
 		},
 		{
 			id: 'judge',
-			label: 'Judge JEV',
-			hint: 'Gate keputusan. Base URL endpoint JEV; model dikunci jev-latest.',
-			modelLocked: true
+			label: 'AI Judge',
+			hint: 'Penilai keputusan. Isi base URL, model, dan API key penyedia penilai.',
+			modelLocked: false
 		}
 	];
-	const JEV_MODEL = 'jev-latest';
-	const JEV_DEFAULT_URL = 'https://api.experientiallabs.ai/v1/systemone';
+	// Nilai awal untuk slot judge yang belum pernah diisi: JEV, penyedia yang
+	// sudah dipakai. Setelah tersimpan, yang dipakai selalu isi database.
+	const JUDGE_DEFAULT_MODEL = 'jev-latest';
+	const JUDGE_DEFAULT_URL = 'https://api.experientiallabs.ai/v1/systemone';
 
 	let slots = $state<AISetting[]>([]);
 	let loading = $state(true);
@@ -45,13 +48,16 @@
 
 	const meta = $derived(SLOTS.find((s) => s.id === selected) ?? SLOTS[0]);
 	const existing = $derived(slots.find((s) => s.slot === selected));
+	// Slot penilai: model & endpoint bebas diisi admin. "judge" sekarang berarti
+	// peran (penilai), bukan produk tertentu; JEV hanya nilai awal.
+	const isJudge = $derived(selected === 'judge');
 
 	function pick(slotId: string, s?: AISetting): void {
 		selected = slotId;
-		const m = SLOTS.find((x) => x.id === slotId);
-		provider = s?.provider ?? (slotId === 'judge' ? 'jev' : '');
-		baseUrl = s?.base_url ?? (slotId === 'judge' ? JEV_DEFAULT_URL : '');
-		model = s?.model ?? (m?.modelLocked ? JEV_MODEL : '');
+		const adalahJudge = slotId === 'judge';
+		provider = s?.provider ?? (adalahJudge ? 'jev' : '');
+		baseUrl = s?.base_url ?? (adalahJudge ? JUDGE_DEFAULT_URL : '');
+		model = s?.model ?? (adalahJudge ? JUDGE_DEFAULT_MODEL : '');
 		maxIn = s?.max_input_tokens || 8000;
 		maxOut = s?.max_output_tokens || 2000;
 		active = s?.is_active ?? true;
@@ -70,7 +76,7 @@
 				slot: selected,
 				provider,
 				base_url: baseUrl.trim(),
-				model: meta.modelLocked ? JEV_MODEL : model.trim(),
+				model: model.trim(),
 				max_input_tokens: maxIn,
 				max_output_tokens: maxOut,
 				is_active: active
@@ -130,7 +136,7 @@
 							<td class="px-4 py-3 text-xs font-mono max-w-[28ch] truncate">
 								{s?.base_url ?? '— belum diisi'}
 							</td>
-							<td class="px-4 py-3 text-xs">{s?.model ?? (sm.modelLocked ? JEV_MODEL : '—')}</td>
+							<td class="px-4 py-3 text-xs">{s?.model ?? '—'}</td>
 							<!-- Masked dari server: teks statis, bukan input. -->
 							<td class="px-4 py-3 text-xs font-mono text-[#64748B]">{s?.api_key ?? '—'}</td>
 							<td class="px-4 py-3">
@@ -191,13 +197,12 @@
 				/>
 			</label>
 			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
-				Model {meta.modelLocked ? '(dikunci)' : ''}
+				Model
 				<input
 					bind:value={model}
 					required
-					disabled={meta.modelLocked}
-					placeholder={meta.modelLocked ? JEV_MODEL : 'gpt-4o-mini'}
-					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs disabled:bg-slate-50 disabled:text-slate-500"
+					placeholder="gpt-4o-mini"
+					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs"
 				/>
 			</label>
 			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1 md:col-span-2">
@@ -205,7 +210,7 @@
 				<input
 					bind:value={baseUrl}
 					required
-					placeholder={selected === 'judge' ? JEV_DEFAULT_URL : 'https://api.example.com/v1'}
+					placeholder={isJudge ? JUDGE_DEFAULT_URL : 'https://api.example.com/v1'}
 					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono"
 				/>
 			</label>

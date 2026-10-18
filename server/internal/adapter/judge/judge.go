@@ -1,6 +1,6 @@
 // Package judge client JEV (POST {base} dengan model "jev-latest").
 // Timeout 30 detik, TANPA retry, TANPA Idempotency-Key: panggilan bisa sudah
-// tercharge (plan/jev_ai.md bagian "How To Use").
+// tercharge (docs/plan/jev_ai.md bagian "How To Use").
 package judge
 
 import (
@@ -16,11 +16,13 @@ import (
 	"paluketok/server/internal/port"
 )
 
-// Timeout http.Client JEV (plan/structure.md baris 70).
-const Timeout = 30 * time.Second
+// DefaultModel dipakai HANYA kalau slot judge tidak menyebut model.
+// "judge" adalah peran penilai, bukan produk: penyedia bisa ditukar dari admin
+// tanpa deploy ulang, dan nilai ini menjaga data lama tetap jalan.
+const DefaultModel = "jev-latest"
 
-// Model JEV (plan/jev_ai.md).
-const Model = "jev-latest"
+// Timeout http.Client penilai (docs/plan/structure.md baris 70).
+const Timeout = 30 * time.Second
 
 // errJudge error HTTP dari gateway JEV.
 type errJudge struct {
@@ -40,12 +42,15 @@ func IsUnavailable(err error) bool {
 		e.Status == http.StatusTooManyRequests || e.Status >= 500
 }
 
-// Client JEV. BaseURL tanpa trailing slash, mis.
+// Client penilai. BaseURL tanpa trailing slash, mis.
 // https://api.experientiallabs.ai/v1/systemone.
 type Client struct {
 	BaseURL string // dari konfigurasi server, bukan dari klien
-	APIKey  string // JEV_API_KEY, hanya server
-	http    *http.Client
+	APIKey  string // hanya di server
+	// Model nama model penilai. Kosong = DefaultModel. Diisi dari slot
+	// ai_settings supaya penyedia penilai bisa diganti tanpa deploy ulang.
+	Model string
+	http  *http.Client
 }
 
 func New(baseURL, apiKey string) *Client {
@@ -63,8 +68,12 @@ func (c *Client) Decide(ctx context.Context, req port.JudgeRequest) (*port.Judge
 			"criteria":     q.Criteria,
 		}
 	}
+	model := c.Model
+	if model == "" {
+		model = DefaultModel
+	}
 	body := map[string]any{
-		"model":     Model,
+		"model":     model,
 		"state":     req.State,
 		"questions": questions,
 	}

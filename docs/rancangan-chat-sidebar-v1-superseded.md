@@ -3,7 +3,7 @@
 Dokumen rancangan, **bukan kode**. Belum ada satu baris pun yang ditulis.
 Untuk ditinjau Naufal sebelum diputuskan dikerjakan atau tidak.
 
-Disusun 16 Oktober 2026, dari pembacaan kode langsung (`server/`, `web/src/`, `plan/`).
+Disusun 16 Oktober 2026, dari pembacaan kode langsung (`server/`, `web/src/`, `docs/plan/`).
 
 ---
 
@@ -61,7 +61,7 @@ beres, karena chat memakai slot yang sama.
 
 ### Fakta
 
-`plan/openapi.md:44` sudah menetapkan **`POST /v1/ai/chat`**, dan `plan/gaps.md` mencatat:
+`docs/plan/openapi.md:44` sudah menetapkan **`POST /v1/ai/chat`**, dan `docs/plan/gaps.md` mencatat:
 
 ```
 | Chatbot | gratis, tidak memotong kredit (JEV: free 0.94) | openapi.md |
@@ -224,7 +224,7 @@ Supaya jelas batasnya:
 
 - **Tidak menambah pipeline tahap baru.** Enam tahap tetap `prd → erd → openapi → roles → security → structure`. Kamu menyebut "AI memutuskan sesuatu" — pada rancangan ini, yang "diputuskan" adalah artefak yang sudah jadi, bukan tahap baru.
 - **Tidak menyentuh uang.** Kredit tetap 1 per run, refund otomatis saat gagal, idempoten.
-- **Tidak mengubah kontrak yang sudah beku** di `plan/openapi.md`, kecuali kamu pilih opsi chat-terikat-proyek di keputusan 1.
+- **Tidak mengubah kontrak yang sudah beku** di `docs/plan/openapi.md`, kecuali kamu pilih opsi chat-terikat-proyek di keputusan 1.
 - **Tidak mengerjakan apa pun** sebelum kamu baca dan setujui dokumen ini.
 
 ---
@@ -244,6 +244,6 @@ Dua penolakan pertama itu berguna: gate memaksa aku mencari sampai menemukan bah
 rancangan sepenuhnya. Tanpa itu, aku akan menulis spesifikasi endpoint baru dari nol
 dan melewatkan bahwa `planner` kosong.
 
-Fakta yang dipakai gate: `plan/openapi.md`, `plan/gaps.md`, `plan/planner.md`,
+Fakta yang dipakai gate: `docs/plan/openapi.md`, `docs/plan/gaps.md`, `docs/plan/planner.md`,
 `server/internal/worker/prompt.go`, `server/cmd/web/llm_resolve.go`,
 `0001_init.sql`, `SummarySidebar.svelte`, `.env` VPS (nama variabel saja).

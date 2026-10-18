@@ -71,7 +71,7 @@
 		<h2 class="text-sm font-bold">Aksi user (UUID manual)</h2>
 		<p class="text-xs text-[#64748B]">
 			Kontrak tak menyediakan <code class="font-mono">GET /v1/admin/users</code>. UUID diambil dari tab
-			Runs di bawah. Catat di plan/gaps.md.
+			Runs di bawah. Catat di docs/plan/gaps.md.
 		</p>
 		<div class="grid gap-3 md:grid-cols-2">
 			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">

@@ -1,4 +1,4 @@
-// Regenerate satu tahap (plan/planner.md bagian 7, auth_billing.md 3.4):
+// Regenerate satu tahap (docs/plan/planner.md bagian 7, auth_billing.md 3.4):
 // 1 kredit di muka (ChargeForRegenerate ref artifact), generate ulang HANYA
 // tahap itu, simpan versi baru + perbarui artifacts, tandai hilir stale,
 // refund lewat RefundCharge bila gagal (idempoten per charge_id).

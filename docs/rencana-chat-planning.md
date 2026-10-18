@@ -3,7 +3,7 @@
 Rencana kerja, **bukan kode**. Belum ada satu baris pun ditulis.
 Versi 2 — menggantikan `rancangan-chat-sidebar.md` setelah keputusan Naufal.
 
-Disusun 16 Oktober 2026 dari pembacaan kode: `server/`, `web/src/`, `plan/`.
+Disusun 16 Oktober 2026 dari pembacaan kode: `server/`, `web/src/`, `docs/plan/`.
 
 ---
 
@@ -76,7 +76,7 @@ panel, tidak lewat chat.
 
 ### A.1 Mengapa kontrak lama tidak dipakai
 
-`plan/openapi.md:44` sudah punya `POST /v1/ai/chat` — tapi payload-nya cuma
+`docs/plan/openapi.md:44` sudah punya `POST /v1/ai/chat` — tapi payload-nya cuma
 `{ messages: [...] }`, **tanpa `project_id`**. Itu chatbot tanya-jawab umum, bukan
 perancang proyek.
 
@@ -312,7 +312,7 @@ Yang **tidak** dilakukan:
 - **Tidak menyentuh uang.** Kredit tetap 1 per run. Chat gratis, tidak ada baris ledger.
 - **Tidak ada streaming.** Satu request, satu balasan.
 - **Tidak ada WebSocket** atau infrastruktur baru.
-- **Tidak mengubah kontrak beku** `plan/openapi.md` — hanya menambah endpoint baru.
+- **Tidak mengubah kontrak beku** `docs/plan/openapi.md` — hanya menambah endpoint baru.
 - **Tidak mengerjakan apa pun** sebelum kamu setujui per fase.
 
 ---
