@@ -15,7 +15,11 @@ import (
 type RunUsecase struct {
 	deps        Deps
 	regenerator Regenerator
-	logger      *slog.Logger
+	// proposer + stages diisi lewat SetStageProposer. Nil berarti tahap dinamis
+	// tidak dipakai dan susunan awal enam tahap yang berlaku.
+	proposer StageProposer
+	stages   StageStore
+	logger   *slog.Logger
 }
 
 func NewRunUsecase(d Deps) *RunUsecase { return &RunUsecase{deps: d, logger: slog.Default()} }
@@ -27,7 +31,10 @@ func (u *RunUsecase) ids() IDGenerator { return u.deps.IDs }
 // CreateRun memulai run baru untuk project: cek owner, cek satu-running,
 // lalu potong 1 kredit dalam satu transaksi di repository
 // (docs/plan/auth_billing.md 3.1 urutan FOR UPDATE -> cek -> insert run -> ledger).
-func (u *RunUsecase) CreateRun(ctx context.Context, actor entity.Actor, projectID entity.ID) (*entity.PlanRun, error) {
+//
+// confirmed berisi skema tahap yang sudah disetujui user di layar konfirmasi.
+// Kosong berarti skema disusun sekarang (judge), dan hasilnya disimpan ke run.
+func (u *RunUsecase) CreateRun(ctx context.Context, actor entity.Actor, projectID entity.ID, confirmed []entity.PlanStage) (*entity.PlanRun, error) {
 	if actor.UserID == "" {
 		return nil, ErrForbidden
 	}
@@ -54,10 +61,18 @@ func (u *RunUsecase) CreateRun(ctx context.Context, actor entity.Actor, projectI
 		return nil, ErrValidation
 	}
 
+	// Skema disusun SEBELUM run dibuat supaya total dan tahap pertama sudah
+	// benar sejak baris run ada. Gagal menyusun tidak menggagalkan run.
+	stages, _ := u.proposeFor(ctx, p, confirmed)
+
 	run := entity.NewPlanRun(u.deps.IDs.New(), projectID, actor.UserID, u.deps.Clock.Now())
+	if len(stages) > 0 {
+		run.Total = len(stages)
+	}
 	if err := u.deps.Ledger.ChargeForRun(ctx, actor.UserID, run); err != nil {
 		return nil, wrap(err)
 	}
+	u.saveStages(ctx, run.ID, stages)
 	return run, nil
 }
 

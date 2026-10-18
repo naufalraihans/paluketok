@@ -25,6 +25,22 @@ func (a workerRunAdapter) SaveProgress(ctx context.Context, id entity.ID, stage 
 	return a.repos.Runs.PatchProgress(ctx, id, stage, progress, status)
 }
 
+func (a workerRunAdapter) SaveTotal(ctx context.Context, id entity.ID, total int) error {
+	return a.repos.Runs.PatchTotal(ctx, id, total)
+}
+
+// workerPlanStageAdapter menyambungkan plan_stages ke kontrak worker.
+// Dipisah seperti adapter run supaya internal/worker tidak mengenal repository.
+type workerPlanStageAdapter struct{ repos *repository.Repos }
+
+func (a workerPlanStageAdapter) ListByRun(ctx context.Context, runID entity.ID) ([]entity.PlanStage, error) {
+	return a.repos.PlanStages.ListByRun(ctx, runID)
+}
+
+func (a workerPlanStageAdapter) ReplaceByRun(ctx context.Context, runID entity.ID, stages []entity.PlanStage) error {
+	return a.repos.PlanStages.ReplaceByRun(ctx, runID, stages)
+}
+
 func (a workerRunAdapter) Finish(ctx context.Context, id entity.ID, status entity.RunStatus, runErr string, now time.Time) error {
 	return a.repos.Runs.PatchFinished(ctx, id, status, runErr, now)
 }

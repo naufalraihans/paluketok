@@ -7,7 +7,8 @@
 	import SummaryBottom from '#lib/components/SummaryBottom.svelte';
 	import ProjectChat from '#lib/components/ProjectChat.svelte';
 	import { summary } from '#lib/mock/summary';
-	import { getProject, getRun, listRunArtifacts, listProjectArtifacts, createRun, regenerateArtifact, ApiError } from '#lib/api';
+	import { getProject, getRun, getProjectStages, listRunArtifacts, listProjectArtifacts, createRun, regenerateArtifact, ApiError } from '#lib/api';
+	import { STAGES, DEFAULT_STAGES, STAGE_LABEL, stageLabel, defaultPlanStages, type PlanStage } from '#lib/stages';
 	import { auth } from '#lib/auth.svelte';
 	import { goto, replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
@@ -42,20 +43,25 @@
 	// seksi proteksi harus dihitung dari isinya — jadi diambil dari jalur run
 	// yang memang sudah dipanggil saat run selesai.
 	let runArtifacts = $state<Artifact[]>([]);
+	// Skema tahap milik run. Kosong selama belum ada run: saat itu dipakai
+	// susunan awal enam tahap sebagai pratinjau (lib/stages.ts).
+	let stages = $state<PlanStage[]>([]);
+	// Slug URL: menu sidebar menunjuk /projects/{slug}/{key}.
+	let slug = $state('');
 	let busy = $state(false);
 	let regenBusy = $state('');
 	let regenMsg = $state('');
 	let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-	const STAGES = ['prd', 'erd', 'openapi', 'roles', 'security', 'structure'] as const;
-	const STAGE_LABEL: Record<string, string> = {
-		prd: 'PRD',
-		erd: 'ERD',
-		openapi: 'OpenAPI',
-		roles: 'Role access',
-		security: 'Proteksi',
-		structure: 'Struktur'
-	};
+	/**
+	 * Urutan tahap yang dipakai halaman ini: skema run bila ada, kalau tidak
+	 * susunan awal. Semua daftar (tile, benang merah, aktivitas) mengikuti ini,
+	 * jadi proyek 4 tahap menampilkan 4 kartu tanpa perubahan lain.
+	 */
+	const stagesEff = $derived(stages.length > 0 ? stages : DEFAULT_STAGES.map((key, i) => ({ key, label: STAGE_LABEL[key], position: i })));
+	const stageKeys = $derived(stagesEff.map((s) => s.key));
+	/** Label tampilan satu tahap; skema run menang atas peta bawaan. */
+	const lbl = (key: string) => stageLabel(key, stagesEff.find((s) => s.key === key));
 
 	async function loadAll() {
 		loading = true;
@@ -72,10 +78,11 @@
 			// UUID proyek dipakai sebagai kunci cache run: URL boleh berubah
 			// dari UUID ke slug tanpa kehilangan riwayat run di sesi ini.
 			projectId = p.id;
+			slug = p.slug ?? '';
 			brief = p.brief;
 			status = p.status;
 			createdAt = new Date(p.created_at).toLocaleDateString('id-ID');
-			tiles = STAGES.map((s) => ({ label: STAGE_LABEL[s], ok: false, note: 'Belum ada artefak', kind: s }));
+			tiles = stageKeys.map((s) => ({ label: lbl(s), ok: false, note: 'Belum ada artefak', kind: s }));
 			// Artefak per PROYEK (bukan per run): sidebar progresif dan tile tahap
 			// tetap benar walau dibuka di browser/perangkat lain, karena tidak
 			// bergantung pada run id yang cuma tersimpan di sessionStorage.
@@ -85,10 +92,10 @@
 				// Tile ikut artefak per proyek, jadi tetap benar di perangkat
 				// baru (sessionStorage kosong) selama run-nya sudah selesai.
 				if (artifacts.length > 0) {
-					tiles = STAGES.map((s) => {
+					tiles = stageKeys.map((s) => {
 						const a = artifacts.find((x) => x.kind === s);
 						return {
-							label: STAGE_LABEL[s],
+							label: lbl(s),
 							ok: Boolean(a),
 							note: a ? `v${a.version} · siap` : 'Belum ada artefak',
 							kind: s,
@@ -124,13 +131,16 @@
 		progress = run.progress;
 		total = run.total;
 		currentStage = run.current_stage ?? '';
+		// Skema tahap dari API mengalahkan susunan bawaan: jumlah tahapnya bisa
+		// berapa saja sesuai usulan AI judge yang disetujui pengguna.
+		stages = run.stages ?? [];
 		if (run.status === 'done' || run.status === 'failed') {
 			const { artifacts } = await listRunArtifacts(rid);
 			runArtifacts = artifacts;
-			tiles = STAGES.map((s) => {
+			tiles = stageKeys.map((s) => {
 				const a = artifacts.find((x) => x.kind === s);
 				return {
-					label: STAGE_LABEL[s],
+					label: lbl(s),
 					ok: Boolean(a),
 					note: a ? `v${a.version} · siap` : 'Belum ada artefak',
 					kind: s,
@@ -138,8 +148,8 @@
 				};
 			});
 		} else {
-			tiles = STAGES.map((s, i) => ({
-				label: STAGE_LABEL[s],
+			tiles = stageKeys.map((s, i) => ({
+				label: lbl(s),
 				ok: i < progress,
 				note: run.current_stage === s ? 'Sedang berjalan…' : i < progress ? 'Selesai' : 'Menunggu',
 				kind: s
@@ -199,7 +209,7 @@
 			{
 				value: arts.length ? String(arts.length) : '—',
 				label: 'Dokumen',
-				note: arts.length ? `${arts.length}/6 tahap tersedia` : 'Belum ada dokumen',
+				note: arts.length ? `${arts.length}/${stageKeys.length} tahap tersedia` : 'Belum ada dokumen',
 				icon: 'document'
 			},
 			{
@@ -241,11 +251,11 @@
 			security: 'shield',
 			structure: 'layers-row'
 		};
-		const nodes = STAGES.filter((s) => arts.some((a) => a.kind === s)).map((s) => {
+		const nodes = stageKeys.filter((s) => arts.some((a) => a.kind === s)).map((s) => {
 			const a = arts.find((x) => x.kind === s)!;
 			return {
-				tag: `${TAG[s]} · v${a.version}`,
-				title: STAGE_LABEL[s],
+				tag: `${TAG[s] ?? s.toUpperCase()} · v${a.version}`,
+				title: lbl(s),
 				note: `${new Date(a.created_at).toLocaleDateString('id-ID')} · ${a.status}`,
 				icon: ICON[s],
 				artifactId: a.id
@@ -253,7 +263,7 @@
 		});
 		return {
 			nodes,
-			connected: nodes.length ? `${nodes.length} dari 6 dokumen sudah jadi` : '',
+			connected: nodes.length ? `${nodes.length} dari ${stageKeys.length} dokumen sudah jadi` : '',
 			pending: nodes.length ? 'Dokumen lain menyusul setelah generate' : 'Belum ada dokumen'
 		};
 	}
@@ -279,16 +289,76 @@
 			.sort((x, y) => y.created_at.localeCompare(x.created_at))
 			.map((a) => ({
 				time: new Date(a.created_at).toLocaleDateString('id-ID'),
-				text: `${STAGE_LABEL[a.kind] ?? a.kind} v${a.version} · ${a.status}`
+				text: `${lbl(a.kind)} v${a.version} · ${a.status}`
 			}));
 	}
 
-	async function startRun() {
+	// Layar konfirmasi: usulan skema tahap dari judge, boleh disunting sebelum
+	// run dibuat. `null` berarti layar tertutup.
+	let confirmOpen = $state(false);
+	let confirmBusy = $state(false);
+	let confirmNote = $state('');
+	let confirmErr = $state('');
+	let draft = $state<PlanStage[]>([]);
+
+	async function openConfirm() {
 		if (busy) return;
+		confirmOpen = true;
+		confirmBusy = true;
+		confirmErr = '';
+		confirmNote = '';
+		try {
+			const res = await getProjectStages(params.id);
+			// Server sudah mengembalikan bentuk sah; salin supaya suntingan di
+			// layar tidak menyentuh objek respons.
+			draft = res.stages.map((s) => ({ ...s, depends_on: [...(s.depends_on ?? [])] }));
+			confirmNote = res.note ?? '';
+		} catch (e) {
+			if (e instanceof ApiError && e.status === 401) {
+				goto('/?login=1');
+				return;
+			}
+			// Gagal menyusun usulan bukan jalan buntu: susunan awal tetap bisa
+			// dipakai, dan itu memang yang dilakukan server tanpa body.
+			confirmErr = e instanceof Error ? e.message : 'Gagal menyusun usulan tahap';
+			draft = defaultPlanStages();
+		} finally {
+			confirmBusy = false;
+		}
+	}
+
+	function closeConfirm() {
+		if (busy) return;
+		confirmOpen = false;
+	}
+
+	function moveStage(i: number, delta: number) {
+		const j = i + delta;
+		if (j < 0 || j >= draft.length) return;
+		const next = [...draft];
+		[next[i], next[j]] = [next[j], next[i]];
+		draft = next.map((s, k) => ({ ...s, position: k }));
+	}
+
+	function removeStage(i: number) {
+		// Minimal dua tahap: sisanya bukan lagi perancangan bertahap.
+		if (draft.length <= 2) return;
+		draft = draft.filter((_, k) => k !== i).map((s, k) => ({ ...s, position: k }));
+	}
+
+	async function startRun(skipConfirm = false) {
+		if (busy) return;
+		// Tekan "Mulai" tanpa membuka layar konfirmasi = tetap lewat layar itu,
+		// supaya user selalu melihat tahap apa yang akan dibuat.
+		if (!confirmOpen && !skipConfirm) {
+			await openConfirm();
+			return;
+		}
 		busy = true;
 		errorMsg = '';
 		try {
-			const run = await createRun(params.id);
+			const run = await createRun(params.id, confirmOpen ? draft : undefined);
+			confirmOpen = false;
 			runId = run.id;
 			sessionStorage.setItem(`pk-run-${projectId || params.id}`, run.id);
 			runStatus = run.status;
@@ -311,7 +381,7 @@
 		try {
 			await regenerateArtifact(artifactId);
 			if (runId) await loadRun(runId);
-			regenMsg = `${STAGE_LABEL[kind]} diperbarui.`;
+			regenMsg = `${lbl(kind)} diperbarui.`;
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 401) {
 				goto('/?login=1');
@@ -379,7 +449,7 @@
 			security: { ...summary.security, ...hitungProteksi(full) },
 			review: {
 				...summary.review,
-				counter: `${arts.length}/6 dokumen`,
+				counter: `${arts.length}/${stageKeys.length} dokumen`,
 				activities: hitungAktivitas(arts)
 			}
 		};
@@ -390,7 +460,14 @@
 	<title>{content.meta.title}</title>
 </svelte:head>
 <div class={content.meta.bodyClass} id="atas">
-	<SummarySidebar projectName={name} ready={progress} total={total} artifacts={projectArtifacts} />
+	<SummarySidebar
+		projectName={name}
+		ready={progress}
+		total={total || stagesEff.length}
+		artifacts={projectArtifacts}
+		{slug}
+		stages={stagesEff}
+	/>
 
 	<div class="flex-1 flex flex-col h-full overflow-hidden bg-[#F8F9FA]" data-purpose="main-layout">
 		<SummaryTopbar breadcrumb={content.breadcrumb} />
@@ -417,21 +494,101 @@
 						<p class="text-sm text-[#475569]">
 							{runStatus === 'failed'
 								? 'Generate terakhir gagal. Kredit otomatis dikembalikan; coba lagi.'
-								: 'Belum ada generate. Mulai untuk menyusun enam dokumen planning.'}
+								: `Belum ada generate. Mulai untuk menyusun ${stagesEff.length} dokumen planning.`}
 						</p>
 						<button
 							type="button"
 							disabled={busy}
 							class="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-slate-950 text-white hover:bg-slate-800 transition-all shadow-sm disabled:opacity-50"
-							onclick={startRun}
+							onclick={() => startRun()}
 							>{busy ? 'Memulai…' : 'Mulai generate (1 kredit)'}</button
 						>
 					</div>
+					{#if confirmOpen}
+						<!-- Skema tahap disusun judge dari brief; user melihat dan
+						     menyuntingnya SEBELUM kredit terpotong. -->
+						<div class="mt-4 rounded-xl border border-slate-200 bg-white p-5">
+							<div class="flex items-start justify-between gap-4">
+								<div>
+									<p class="text-sm font-semibold">Tahap yang akan disusun</p>
+									<p class="text-xs text-slate-500 mt-1">
+										Usulan AI dari brief proyek. Urutan bisa diubah, tahap bisa dibuang.
+										{confirmBusy ? 'Menyusun…' : ''}
+									</p>
+								</div>
+								<button
+									type="button"
+									class="text-xs text-slate-500 hover:text-slate-800 transition-all"
+									onclick={closeConfirm}>Tutup</button
+								>
+							</div>
+
+							{#if confirmErr}
+								<p class="mt-3 text-xs text-amber-700">
+									{confirmErr} — dipakai susunan awal {draft.length} tahap.
+								</p>
+							{/if}
+							{#if confirmNote}
+								<p class="mt-3 text-xs text-amber-700">{confirmNote}</p>
+							{/if}
+
+							<ol class="mt-4 space-y-2">
+								{#each draft as s, i (s.key + '-' + i)}
+									<li class="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+										<span class="text-xs text-slate-400 w-5">{i + 1}</span>
+										<div class="min-w-0 flex-1">
+											<p class="text-sm font-medium truncate">{s.label}</p>
+											<p class="text-xs text-slate-500 truncate">
+												{s.output_format}
+												{#if s.intent}· {s.intent}{/if}
+											</p>
+										</div>
+										<div class="flex items-center gap-1">
+											<button
+												type="button"
+												disabled={i === 0}
+												class="px-2 py-1 text-xs rounded border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40"
+												onclick={() => moveStage(i, -1)}>↑</button
+											>
+											<button
+												type="button"
+												disabled={i === draft.length - 1}
+												class="px-2 py-1 text-xs rounded border border-slate-200 hover:bg-slate-50 transition-all disabled:opacity-40"
+												onclick={() => moveStage(i, 1)}>↓</button
+											>
+											<button
+												type="button"
+												disabled={draft.length <= 2}
+												class="px-2 py-1 text-xs rounded border border-slate-200 text-rose-600 hover:bg-rose-50 transition-all disabled:opacity-40"
+												onclick={() => removeStage(i)}>Buang</button
+											>
+										</div>
+									</li>
+								{/each}
+							</ol>
+
+							<div class="mt-4 flex items-center gap-3">
+								<button
+									type="button"
+									disabled={busy || confirmBusy || draft.length < 2}
+									class="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-slate-950 text-white hover:bg-slate-800 transition-all disabled:opacity-50"
+									onclick={() => startRun(true)}
+									>{busy ? 'Memulai…' : `Mulai ${draft.length} tahap (1 kredit)`}</button
+								>
+								<button
+									type="button"
+									disabled={busy || confirmBusy}
+									class="text-xs text-slate-500 hover:text-slate-800 transition-all"
+									onclick={openConfirm}>Susun ulang</button
+								>
+							</div>
+						</div>
+					{/if}
 				{/if}
 				{#if runId}
 					<div class="rounded-xl border border-slate-200 bg-white p-6" id="tahap">
 						<p class="text-sm font-semibold mb-3">
-							Enam tahap planning
+							{stagesEff.length} tahap planning
 							<span class="ml-2 text-xs font-normal text-slate-500">
 								{#if runStatus === 'running' || runStatus === 'queued'}
 									{currentStage ? `sedang: ${currentStage}` : 'antre…'} · {progress}/{total}
@@ -440,6 +597,8 @@
 								{/if}
 							</span>
 						</p>
+						<!-- Kolom tetap: Tailwind tidak menghasilkan kelas dari nilai
+						     runtime, jadi jumlah kolom TIDAK boleh disisipkan di sini. -->
 						<div class="grid grid-cols-2 md:grid-cols-6 gap-3">
 							{#each tiles as t (t.label)}
 								<div

@@ -63,7 +63,10 @@ func NewRouter(o RouterOptions) http.Handler {
 	authed.HandleFunc("PATCH /v1/projects/{id}", o.Handlers.UpdateProject)
 	authed.HandleFunc("DELETE /v1/projects/{id}", o.Handlers.ArchiveProject)
 	authed.HandleFunc("POST /v1/projects/{id}/runs", o.Handlers.CreateRun)
+	// Usulan skema tahap untuk layar konfirmasi (dinamis per proyek).
+	authed.HandleFunc("GET /v1/projects/{id}/stages", o.Handlers.PreviewStages)
 	authed.HandleFunc("GET /v1/runs/{id}", o.Handlers.GetRun)
+	authed.HandleFunc("GET /v1/runs/{id}/stages", o.Handlers.RunStages)
 	authed.HandleFunc("GET /v1/runs/{id}/artifacts", o.Handlers.ListRunArtifacts)
 	authed.HandleFunc("GET /v1/artifacts/{id}", o.Handlers.GetArtifact)
 	authed.HandleFunc("POST /v1/artifacts/{id}/regenerate", o.Handlers.RegenerateArtifact)

@@ -34,6 +34,9 @@ type memStore struct {
 	orders    map[entity.ID]*entity.Order
 	ledger    []LedgerEntryRef
 	messages  []entity.ProjectMessage
+
+	// planStages: skema tahap dinamis per run (migrasi 0007).
+	planStages []entity.PlanStage
 }
 
 func newMemStore() *memStore {

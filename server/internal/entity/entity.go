@@ -6,6 +6,8 @@ package entity
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -85,8 +87,211 @@ type Project struct {
 	UpdatedAt time.Time
 }
 
-// Stage adalah enam tahap planner (docs/plan/planner.md bagian 2). Dipakai untuk
-// plan_runs.current_stage, artifacts.kind, dan decisions.stage.
+// OutputFormat format keluaran tahap. Dibatasi tiga (keputusan pemilik): apa pun
+// di luar ini ditolak worker, karena format lain tidak bisa diperiksa mesin.
+type OutputFormat string
+
+const (
+	FormatMarkdown OutputFormat = "markdown"
+	FormatJSON     OutputFormat = "json"
+	FormatDBML     OutputFormat = "dbml"
+)
+
+// ValidOutputFormat true hanya untuk tiga format yang didukung.
+func ValidOutputFormat(f OutputFormat) bool {
+	switch f {
+	case FormatMarkdown, FormatJSON, FormatDBML:
+		return true
+	}
+	return false
+}
+
+// MinStages dan MaxStages batas jumlah tahap per run (docs/plan/planner.md):
+// kurang dari dua bukan "tahap demi tahap", lebih dari dua belas bukan lagi
+// dokumen perancangan yang bisa dibaca.
+const (
+	MinStages = 2
+	MaxStages = 12
+)
+
+// ValidStageKey memeriksa kunci tahap cocok dengan plan_stages.key
+// (^[a-z][a-z0-9_-]{1,30}$). Ditegakkan di sini supaya worker dan repository
+// memakai aturan yang sama, bukan dua regexp yang bisa berbeda.
+func ValidStageKey(k Stage) bool {
+	s := string(k)
+	if len(s) < 2 || len(s) > 31 {
+		return false
+	}
+	if s[0] < 'a' || s[0] > 'z' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		ok := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// PlanStage satu tahap planning milik satu run (tabel plan_stages, migrasi 0007).
+//
+// Sebelum ini tahap dipaku di enam konstanta. Sekarang AI judge menyusunnya per
+// run, jadi jumlah dan namanya bebas dalam batas MinStages..MaxStages.
+type PlanStage struct {
+	ID           ID           `json:"id"`
+	RunID        ID           `json:"run_id"`
+	Key          Stage        `json:"key"`
+	Label        string       `json:"label"`
+	Position     int          `json:"position"`
+	Intent       string       `json:"intent"`
+	OutputFormat OutputFormat `json:"output_format"`
+	CheckSpec    []byte       `json:"check_spec,omitempty"`
+	DependsOn    []Stage      `json:"depends_on"`
+	CreatedAt    time.Time    `json:"created_at"`
+}
+
+// DefaultPlanStages susunan awal enam tahap sebagai PlanStage.
+//
+// Dipakai saat: run lama tanpa baris plan_stages, judge tidak bisa dipakai, atau
+// usulan judge ditolak. runID boleh kosong untuk pratinjau sebelum run ada.
+func DefaultPlanStages(runID ID) []PlanStage {
+	out := make([]PlanStage, 0, len(Stages))
+	for i, s := range Stages {
+		out = append(out, PlanStage{
+			RunID:        runID,
+			Key:          s,
+			Label:        builtinStageLabel[s],
+			Position:     i,
+			Intent:       builtinStageIntent[s],
+			OutputFormat: builtinStageFormat[s],
+			CheckSpec:    builtinCheckSpec[s],
+		})
+	}
+	for i := range out {
+		out[i].DependsOn = builtinStageDeps[out[i].Key]
+	}
+	return out
+}
+
+var builtinStageLabel = map[Stage]string{
+	StagePRD:       "PRD",
+	StageERD:       "ERD",
+	StageOpenAPI:   "OpenAPI",
+	StageRoles:     "Role access",
+	StageSecurity:  "Proteksi",
+	StageStructure: "Struktur",
+}
+
+var builtinStageIntent = map[Stage]string{
+	StagePRD:       "Rumuskan masalah, pengguna, fitur inti, dan batas proyek.",
+	StageERD:       "Susun skema data: tabel, kolom, primary key, dan relasi.",
+	StageOpenAPI:   "Tetapkan kontrak HTTP: path, method, dan respons tiap operasi.",
+	StageRoles:     "Petakan peran dan hak akses untuk setiap path kontrak.",
+	StageSecurity:  "Tetapkan trust boundary, validasi input, dan checklist proteksi.",
+	StageStructure: "Tetapkan struktur folder dan aturan layer sesuai stack.",
+}
+
+var builtinStageFormat = map[Stage]OutputFormat{
+	StagePRD:       FormatMarkdown,
+	StageERD:       FormatDBML,
+	StageOpenAPI:   FormatJSON,
+	StageRoles:     FormatMarkdown,
+	StageSecurity:  FormatMarkdown,
+	StageStructure: FormatMarkdown,
+}
+
+var builtinStageDeps = map[Stage][]Stage{
+	StagePRD:       {},
+	StageERD:       {StagePRD},
+	StageOpenAPI:   {StagePRD, StageERD},
+	StageRoles:     {StagePRD, StageOpenAPI},
+	StageSecurity:  {StageOpenAPI, StageERD, StageRoles},
+	StageStructure: {StagePRD, StageOpenAPI, StageERD},
+}
+
+var builtinCheckSpec = map[Stage][]byte{
+	StagePRD: []byte(`{"wajib_seksi":["Tujuan","Scope","Acceptance criteria","Di luar scope"]}`),
+}
+
+// NormalizePlanStages memeriksa skema yang datang dari luar (mis. usulan yang
+// sudah disunting user) dan mengembalikannya dalam bentuk sah.
+//
+// Aturannya sama dengan yang ditegakkan worker; dipisah ke sini supaya HTTP
+// handler bisa menolak lebih awal tanpa menunggu worker.
+func NormalizePlanStages(in []PlanStage) ([]PlanStage, error) {
+	if len(in) < MinStages || len(in) > MaxStages {
+		return nil, fmt.Errorf("jumlah tahap %d di luar batas %d..%d", len(in), MinStages, MaxStages)
+	}
+	seen := make(map[Stage]bool, len(in))
+	out := make([]PlanStage, 0, len(in))
+	for i, s := range in {
+		k := Stage(strings.TrimSpace(strings.ToLower(string(s.Key))))
+		if !ValidStageKey(k) {
+			return nil, fmt.Errorf("key tahap %q tidak sah", s.Key)
+		}
+		if seen[k] {
+			return nil, fmt.Errorf("key tahap %q dipakai dua kali", k)
+		}
+		seen[k] = true
+		if !ValidOutputFormat(s.OutputFormat) {
+			return nil, fmt.Errorf("format %q tahap %s tidak dikenal", s.OutputFormat, k)
+		}
+		label := strings.TrimSpace(s.Label)
+		if label == "" {
+			label = string(k)
+		}
+		intent := strings.TrimSpace(s.Intent)
+		if intent == "" {
+			intent = "Susun artefak " + label + " untuk proyek ini."
+		}
+		out = append(out, PlanStage{
+			RunID:        s.RunID,
+			Key:          k,
+			Label:        label,
+			Position:     i,
+			Intent:       intent,
+			OutputFormat: s.OutputFormat,
+			CheckSpec:    s.CheckSpec,
+		})
+	}
+	// depends_on diperiksa setelah semua key terkumpul.
+	for _, s := range in {
+		for _, d := range s.DependsOn {
+			dk := Stage(strings.TrimSpace(strings.ToLower(string(d))))
+			if !ValidStageKey(dk) || !seen[dk] {
+				return nil, fmt.Errorf("tahap %s bergantung pada %q yang tidak ada", s.Key, d)
+			}
+		}
+	}
+	for i, s := range in {
+		var deps []Stage
+		for _, d := range s.DependsOn {
+			dk := Stage(strings.TrimSpace(strings.ToLower(string(d))))
+			if !containsStage(deps, dk) {
+				deps = append(deps, dk)
+			}
+		}
+		out[i].DependsOn = deps
+	}
+	return out, nil
+}
+
+func containsStage(list []Stage, k Stage) bool {
+	for _, s := range list {
+		if s == k {
+			return true
+		}
+	}
+	return false
+}
+
+// Stage adalah kunci satu tahap planning. Sejak tahap disusun dinamis
+// (plan_stages, migrasi 0007), nilainya TIDAK lagi terbatas pada enam konstanta
+// di bawah: kunci bebas selama cocok pola plan_stages.key. Enam konstanta itu
+// sekarang hanya SUSUNAN AWAL yang dipakai bila sebuah run belum punya skema
+// sendiri, dan tetap menjadi kunci tahap bawaan yang validatornya sudah ada.
 type Stage string
 
 const (
@@ -98,13 +303,15 @@ const (
 	StageStructure Stage = "structure"
 )
 
-// Stages adalah urutan tetap pipeline. Tahap berikutnya selalu memakai hasil
-// tahap sebelumnya (docs/plan/planner.md bagian 2).
+// Stages adalah susunan awal enam tahap. Dipakai sebagai nilai awal saat run
+// belum punya baris plan_stages (docs/plan/planner.md bagian 2); tahap
+// berikutnya selalu memakai hasil tahap sebelumnya.
 var Stages = []Stage{
 	StagePRD, StageERD, StageOpenAPI, StageRoles, StageSecurity, StageStructure,
 }
 
-// TotalStages adalah nilai plan_runs.total (erd.dbml).
+// TotalStages adalah jumlah tahap susunan awal (erd.dbml). Jumlah tahap run
+// sebenarnya bisa berbeda: plan_runs.total diisi worker dari panjang skema.
 const TotalStages = 6
 
 // RunStatus mengikuti CHECK plan_runs.status (erd.dbml).

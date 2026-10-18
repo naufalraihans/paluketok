@@ -311,7 +311,47 @@ func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, err)
 		return
 	}
-	run, err := h.Runs.CreateRun(r.Context(), actorFrom(r), id)
+	// Body opsional: skema tahap yang sudah disetujui di layar konfirmasi.
+	// Tanpa body / tanpa "stages", skema disusun judge saat itu juga.
+	var body struct {
+		Stages []struct {
+			Key          string   `json:"key"`
+			Label        string   `json:"label"`
+			Intent       string   `json:"intent"`
+			OutputFormat string   `json:"output_format"`
+			DependsOn    []string `json:"depends_on"`
+		} `json:"stages"`
+	}
+	confirmed := []entity.PlanStage(nil)
+	if r.Body != nil {
+		if derr := json.NewDecoder(r.Body).Decode(&body); derr == nil {
+			for _, s := range body.Stages {
+				st := entity.PlanStage{
+					Key:          entity.Stage(s.Key),
+					Label:        s.Label,
+					Intent:       s.Intent,
+					OutputFormat: entity.OutputFormat(s.OutputFormat),
+				}
+				for _, d := range s.DependsOn {
+					st.DependsOn = append(st.DependsOn, entity.Stage(d))
+				}
+				confirmed = append(confirmed, st)
+			}
+			if len(confirmed) > 0 {
+				// Ditolak di sini, bukan di worker: lebih baik 400 daripada run
+				// jalan dengan skema yang sudah dipastikan tidak sah.
+				clean, nerr := entity.NormalizePlanStages(confirmed)
+				if nerr != nil {
+					response.JSON(w, http.StatusBadRequest,
+						map[string]any{"error": map[string]string{
+							"code": "validation_error", "message": nerr.Error()}})
+					return
+				}
+				confirmed = clean
+			}
+		}
+	}
+	run, err := h.Runs.CreateRun(r.Context(), actorFrom(r), id, confirmed)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -327,7 +367,46 @@ func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	response.JSON(w, http.StatusAccepted, runDTOwithStages(run))
+	plan, _ := h.Runs.PlanStagesOfRun(r.Context(), actorFrom(r), run.ID)
+	response.JSON(w, http.StatusAccepted, runDTOwithStages(run, plan))
+}
+
+// PreviewStages mengembalikan USULAN skema tahap tanpa membuat run dan tanpa
+// memotong kredit: isi layar konfirmasi sebelum user menekan Mulai.
+func (h *Handlers) PreviewStages(w http.ResponseWriter, r *http.Request) {
+	ref, ok := pathRef(w, r, "id")
+	if !ok {
+		return
+	}
+	id, err := h.Projects.ResolveProjectID(r.Context(), actorFrom(r), ref)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	stages, note, err := h.Runs.PreviewStages(r.Context(), actorFrom(r), id)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	out := map[string]any{"stages": stagesDTO(stages)}
+	if note != "" {
+		out["note"] = note
+	}
+	response.JSON(w, http.StatusOK, out)
+}
+
+// RunStages membaca skema tahap satu run (openapi.md GET /v1/runs/{id}/stages).
+func (h *Handlers) RunStages(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	stages, err := h.Runs.PlanStagesOfRun(r.Context(), actorFrom(r), id)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"stages": stagesDTO(stages)})
 }
 
 func (h *Handlers) GetRun(w http.ResponseWriter, r *http.Request) {
@@ -474,9 +553,38 @@ func runDTO(r *entity.PlanRun) map[string]any {
 	return d
 }
 
-func runDTOwithStages(r *entity.PlanRun) map[string]any {
+// stageDTO bentuk satu tahap di API. `check_spec` dikirim mentah (json.RawMessage)
+// supaya klien bisa menampilkan/menyuntingnya tanpa server mendikte bentuknya.
+func stageDTO(s *entity.PlanStage) map[string]any {
+	d := map[string]any{
+		"key":           s.Key,
+		"label":         s.Label,
+		"position":      s.Position,
+		"intent":        s.Intent,
+		"output_format": s.OutputFormat,
+	}
+	if len(s.CheckSpec) > 0 {
+		d["check_spec"] = json.RawMessage(s.CheckSpec)
+	}
+	if len(s.DependsOn) > 0 {
+		d["depends_on"] = s.DependsOn
+	}
+	return d
+}
+
+func stagesDTO(list []entity.PlanStage) []map[string]any {
+	out := make([]map[string]any, 0, len(list))
+	for i := range list {
+		out = append(out, stageDTO(&list[i]))
+	}
+	return out
+}
+
+// runDTOwithStages dipakai saat MEMBUAT run: skema tahapnya ikut supaya klien
+// tidak perlu menanyakan lagi.
+func runDTOwithStages(r *entity.PlanRun, plan []entity.PlanStage) map[string]any {
 	d := runDTO(r)
-	d["stages"] = stages
+	d["stages"] = stagesDTO(plan)
 	d["credits_charged"] = r.CreditsCharged
 	return d
 }

@@ -132,6 +132,19 @@ export const createProject = (input: { name: string; brief: string; stack?: Stac
 	post<Project>('/v1/projects', { stack: {}, ...input });
 
 // --- runs & artifacts ---
+/**
+ * Skema satu tahap planning (tabel `plan_stages`). Dikirim server di `run.stages`
+ * supaya UI tidak menebak jumlah tahap dari daftar tetap seperti dulu.
+ */
+export type PlanStage = {
+	key: string;
+	label: string;
+	position: number;
+	intent?: string;
+	output_format?: string;
+	depends_on?: string[];
+};
+
 export type Run = {
 	id: string;
 	project_id: string;
@@ -141,11 +154,24 @@ export type Run = {
 	total: number;
 	current_stage?: string;
 	escalations: number;
-	stages?: string[];
+	/** Skema tahap run ini. Kosong untuk run yang dibuat sebelum fitur ini. */
+	stages?: PlanStage[];
 	credits_charged?: number;
 };
-export const createRun = (projectId: string) => post<Run>(`/v1/projects/${projectId}/runs`);
+export const createRun = (projectId: string, stages?: PlanStage[]) =>
+	// Skema yang sudah dikonfirmasi ikut dikirim supaya server tidak menyusunnya
+	// dua kali (sekali saat pratinjau, sekali saat mulai).
+	post<Run>(`/v1/projects/${projectId}/runs`, stages && stages.length ? { stages } : undefined);
 export const getRun = (runId: string) => get<Run>(`/v1/runs/${runId}`);
+/**
+ * Usulan skema tahap untuk layar konfirmasi. Tidak membuat run dan tidak
+ * memotong kredit.
+ */
+export const getProjectStages = (projectId: string) =>
+	get<{ stages: PlanStage[]; note?: string }>(`/v1/projects/${projectId}/stages`);
+/** Skema tahap sebuah run. Run lama tanpa skema dibalas susunan awal server. */
+export const getRunStages = (runId: string) =>
+	get<{ stages: PlanStage[] }>(`/v1/runs/${runId}/stages`);
 
 export type Artifact = {
 	id: string;

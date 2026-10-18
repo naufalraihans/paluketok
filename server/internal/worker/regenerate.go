@@ -37,14 +37,36 @@ func (p *Pipeline) RegenerateStage(ctx context.Context, art *entity.Artifact) (s
 	p.prev = prev
 	p.prevDigest = artifactDigestMap(prev)
 
-	draft, err := p.generateWithRetry(ctx, run, art.Kind)
+	// Skema tahap run dipakai supaya regenerate memakai intent + output_format
+	// yang benar. Run lama tanpa skema jatuh ke susunan awal, lalu tahap yang
+	// diminta dicari dari sana.
+	plan, err := p.planStages(ctx, run)
+	if err != nil {
+		return "", fmt.Errorf("skema tahap: %w", err)
+	}
+	st, ok := findPlanStage(plan, art.Kind)
+	if !ok {
+		return "", fmt.Errorf("tahap %s tidak ada di skema run", art.Kind)
+	}
+
+	draft, err := p.generateWithRetry(ctx, run, st)
 	if err != nil {
 		return "", err
 	}
-	if err := validate(art.Kind, draft, prev); err != nil {
+	if err := validatePlanStage(st, draft, prev); err != nil {
 		return "", fmt.Errorf("validasi %s: %w", art.Kind, err)
 	}
 	return draft, nil
+}
+
+// findPlanStage mencari satu tahap di skema run.
+func findPlanStage(plan []entity.PlanStage, key entity.Stage) (entity.PlanStage, bool) {
+	for _, st := range plan {
+		if st.Key == key {
+			return st, true
+		}
+	}
+	return entity.PlanStage{}, false
 }
 
 // artifactDigestMap: digest ringkas per tahap untuk prompt.

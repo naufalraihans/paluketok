@@ -33,12 +33,14 @@ type Pipeline struct {
 	artifacts ArtifactStore
 	ledger    LedgerStore
 	decisions DecisionsStore
+	stages    PlanStageStore
 	ids       IDGen
 	clock     func() time.Time
 	log       *slog.Logger
 
 	// state per-run (diisi process untuk setiap run):
 	brief        string
+	plan         []entity.PlanStage // skema tahap run ini
 	stackSummary map[string]string
 	prev         map[entity.Stage]string // artefak lolos (kind -> content)
 	prevDigest   map[entity.Stage]string // ringkasan untuk evidence JEV
@@ -50,10 +52,10 @@ type IDGen interface{ New() entity.ID }
 // New membuat pipeline.
 func New(llm LLM, judge Judge, runs RunStore, projects ProjectsSource,
 	artifacts ArtifactStore, ledger LedgerStore, decisions DecisionsStore,
-	ids IDGen, clock func() time.Time, log *slog.Logger) *Pipeline {
+	stages PlanStageStore, ids IDGen, clock func() time.Time, log *slog.Logger) *Pipeline {
 	return &Pipeline{llm: llm, judge: judge, runs: runs, projects: projects,
 		artifacts: artifacts, ledger: ledger, decisions: decisions,
-		ids: ids, clock: clock, log: log}
+		stages: stages, ids: ids, clock: clock, log: log}
 }
 
 // Process menjalankan SATU klaim: klaim queued -> pipeline -> done/failed.
@@ -98,62 +100,92 @@ func (p *Pipeline) process(ctx context.Context, run *entity.PlanRun) error {
 }
 
 // execute memproses seluruh tahap untuk run yang sudah 'running'.
+//
+// Urutannya dari plan_stages milik run, bukan entity.Stages: jumlah dan nama
+// tahap ditentukan skema. Run lama tanpa baris plan_stages jatuh ke susunan awal
+// enam tahap supaya tetap bisa dijalankan ulang.
 func (p *Pipeline) execute(ctx context.Context, run *entity.PlanRun) error {
 	p.prev = map[entity.Stage]string{}
 	p.prevDigest = map[entity.Stage]string{}
 
-	for i, stage := range entity.Stages {
+	plan, err := p.planStages(ctx, run)
+	if err != nil {
+		return p.failRun(ctx, run, "db")
+	}
+	// total = jumlah tahap sebenarnya (tugas Fase B poin 2).
+	if err := p.runs.SaveTotal(ctx, run.ID, len(plan)); err == nil {
+		run.Total = len(plan)
+	}
+	p.plan = plan
+
+	for i, st := range plan {
 		if err := ctx.Err(); err != nil {
 			return p.failRun(ctx, run, "server_restart")
 		}
 		// a0: tahap SEDANG berjalan ditulis di AWAL (planner.md bagian 1/6).
-		if err := p.runs.SaveProgress(ctx, run.ID, stage, i, entity.RunRunning); err != nil {
+		if err := p.runs.SaveProgress(ctx, run.ID, st.Key, i, entity.RunRunning); err != nil {
 			return p.failRun(ctx, run, "db")
 		}
 
-		draft, err := p.generateWithRetry(ctx, run, stage)
+		draft, err := p.generateWithRetry(ctx, run, st)
 		if err != nil {
 			return p.failRun(ctx, run, err.Error())
 		}
 
-		// Simpan artifact + versi (uq_artifacts_run_kind).
+		// Simpan artifact + versi (uq_artifacts_run_kind). kind = key skema.
 		art := &entity.Artifact{
 			ID: p.ids.New(), RunID: run.ID, UserID: run.UserID,
-			Kind: stage, Content: draft, Version: 1, Status: entity.ArtifactDraft,
+			Kind: st.Key, Content: draft, Version: 1, Status: entity.ArtifactDraft,
 			CreatedAt: p.clock(), UpdatedAt: p.clock(),
 		}
 		if err := p.artifacts.Upsert(ctx, art); err != nil {
 			return p.failRun(ctx, run, "db")
 		}
 
-		p.prev[stage] = draft
-		p.prevDigest[stage] = truncate(draft, 400)
+		p.prev[st.Key] = draft
+		p.prevDigest[st.Key] = truncate(draft, 400)
 	}
 
 	return p.doneRun(ctx, run)
 }
 
+// planStages membaca skema tahap run. Kosong = run lama tanpa skema, dan
+// susunan awal enam tahap dipakai apa adanya.
+func (p *Pipeline) planStages(ctx context.Context, run *entity.PlanRun) ([]entity.PlanStage, error) {
+	if p.stages == nil {
+		return entity.DefaultPlanStages(run.ID), nil
+	}
+	plan, err := p.stages.ListByRun(ctx, run.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(plan) == 0 {
+		return entity.DefaultPlanStages(run.ID), nil
+	}
+	return plan, nil
+}
+
 // generateWithRetry: panggil LLM + validasi. Gagal validasi menyuntikkan
 // pesan error ke prompt berikutnya (planner.md bagian 5). Maks 2 percobaan.
-func (p *Pipeline) generateWithRetry(ctx context.Context, run *entity.PlanRun, stage entity.Stage) (string, error) {
+func (p *Pipeline) generateWithRetry(ctx context.Context, run *entity.PlanRun, st entity.PlanStage) (string, error) {
 	var lastErr error
 	for attempt := 1; attempt <= maxValidateAttempts; attempt++ {
 		dctx, cancel := context.WithTimeout(ctx, stageTimeout)
-		resp, err := p.llm.Complete(dctx, p.buildPrompt(stage, lastErr))
+		resp, err := p.llm.Complete(dctx, p.buildPrompt(st, lastErr))
 		cancel()
 		if err != nil {
-			return "", fmt.Errorf("llm %s: %w", stage, err)
+			return "", fmt.Errorf("llm %s: %w", st.Key, err)
 		}
 		run.TokensIn += resp.Usage.InputTokens
 		run.TokensOut += resp.Usage.OutputTokens
 
-		if verr := validate(stage, resp.Content, p.prev); verr != nil {
+		if verr := validatePlanStage(st, resp.Content, p.prev); verr != nil {
 			lastErr = verr
 			continue // retry dengan pesan error ditambahkan
 		}
 		return resp.Content, nil
 	}
-	return "", fmt.Errorf("validasi %s gagal %d kali: %v", stage, maxValidateAttempts, lastErr)
+	return "", fmt.Errorf("validasi %s gagal %d kali: %v", st.Key, maxValidateAttempts, lastErr)
 }
 
 // doneRun menutup run sebagai done.

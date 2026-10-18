@@ -251,6 +251,19 @@ func (r *RunRepo) PatchProgress(ctx context.Context, id entity.ID, stage entity.
 	return nil
 }
 
+// PatchTotal menulis jumlah tahap sebenarnya milik run. Tahap disusun dinamis
+// (plan_stages), jadi total tidak lagi selalu 6.
+func (r *RunRepo) PatchTotal(ctx context.Context, id entity.ID, total int) error {
+	tag, err := r.db.Exec(ctx, `update plan_runs set total=$2 where id=$1`, id, total)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return port.ErrNotFound
+	}
+	return nil
+}
+
 // PatchFinished menutup run: status final + error + finished_at.
 func (r *RunRepo) PatchFinished(ctx context.Context, id entity.ID, status entity.RunStatus, runErr string, now time.Time) error {
 	tag, err := r.db.Exec(ctx,

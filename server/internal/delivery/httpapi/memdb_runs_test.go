@@ -126,6 +126,17 @@ func (m memRunStore) SaveProgress(_ context.Context, id entity.ID, stage entity.
 	return nil
 }
 
+func (m memRunStore) SaveTotal(_ context.Context, id entity.ID, total int) error {
+	m.s.mu.Lock()
+	defer m.s.mu.Unlock()
+	r, ok := m.s.runs[id]
+	if !ok {
+		return port.ErrNotFound
+	}
+	r.Total = total
+	return nil
+}
+
 func (m memRunStore) Finish(_ context.Context, id entity.ID, st entity.RunStatus, errMsg string, now time.Time) error {
 	m.s.mu.Lock()
 	defer m.s.mu.Unlock()

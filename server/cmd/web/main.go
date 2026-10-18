@@ -135,7 +135,8 @@ func newServer(envFile string) (*server, error) {
 	// tanpa worker tetap aman: klaim DB mengosongkan antrean.
 	runAdapter := workerRunAdapter{repos: repos}
 	pipe := worker.New(resolvedLLM{client: llmClient, store: repos.AISettings}, resolvedJudge{client: judgeClient, store: repos.AISettings},
-		runAdapter, repos.Projects, repos.Artifacts, repos.Ledger, repos.Decisions, idsReal{},
+		runAdapter, repos.Projects, repos.Artifacts, repos.Ledger, repos.Decisions,
+		workerPlanStageAdapter{repos: repos}, idsReal{},
 		func() time.Time { return time.Now().UTC() }, logger.Setup(cfg.AppEnv))
 	wp, err := worker.NewPool(pipe, runAdapter, idsReal{}, func() time.Time { return time.Now().UTC() }, logger.Setup(cfg.AppEnv))
 	if err != nil {
@@ -143,6 +144,9 @@ func newServer(envFile string) (*server, error) {
 	}
 	h.Submitter = wp
 	runUC.SetRegenerator(pipe) // POST /v1/artifacts/{id}/regenerate (planner.md 7)
+	// Skema tahap dinamis: pipeline menyusun usulannya (judge) sekaligus
+	// menyimpannya, jadi satu objek dipasang untuk dua peran.
+	runUC.SetStageProposer(pipe, workerPlanStageAdapter{repos: repos})
 	go wp.Start(context.Background(), wp.Warmup(context.Background()))
 
 	return &server{

@@ -114,7 +114,7 @@ func TestRefundRun_SekaliSaja(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	run, err := uc.CreateRun(context.Background(), entity.Actor{UserID: userA}, proj.ID)
+	run, err := uc.CreateRun(context.Background(), entity.Actor{UserID: userA}, proj.ID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

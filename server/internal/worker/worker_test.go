@@ -27,10 +27,11 @@ func newTestPipeline(t *testing.T) (*Pipeline, *fakeRuns, *fakeArtifacts, *fakeL
 	dec := &fakeDecisions{}
 	llm := &fakeLLM{}
 	jdg := &fakeJudge{}
+	plans := newFakePlanStages()
 	p := New(llm, jdg, runs, fakeProjects{p: &entity.Project{
 		ID: "p1", Brief: "buat aplikasi rekap",
 		Stack: entity.Stack{FE: "svelte", BE: "go"},
-	}}, arts, led, dec, &fakeIDs{}, func() time.Time { return time.Unix(0, 0).UTC() },
+	}}, arts, led, dec, plans, &fakeIDs{}, func() time.Time { return time.Unix(0, 0).UTC() },
 		testLogger())
 	return p, runs, arts, led, dec, llm, jdg
 }

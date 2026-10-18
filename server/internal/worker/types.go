@@ -17,6 +17,9 @@ type RunStore interface {
 	// SaveProgress menulis current_stage (di AWAL tahap) + progress + status
 	// dalam satu UPDATE (planner.md bagian 1 langkah a0/f).
 	SaveProgress(ctx context.Context, id entity.ID, stage entity.Stage, progress int, status entity.RunStatus) error
+	// SaveTotal menulis plan_runs.total = jumlah tahap sebenarnya milik run.
+	// Tahap disusun dinamis, jadi total tidak lagi selalu 6.
+	SaveTotal(ctx context.Context, id entity.ID, total int) error
 	// Finish menutup run: done/failed + error + finished_at.
 	Finish(ctx context.Context, id entity.ID, status entity.RunStatus, runErr string, now time.Time) error
 	ListQueued(ctx context.Context) ([]port.QueuedRun, error)
@@ -48,6 +51,14 @@ type LedgerStore interface {
 // DecisionsStore mencatat setiap panggilan gate JEV (planner.md bagian 4).
 type DecisionsStore interface {
 	Create(ctx context.Context, d *entity.Decision) error
+}
+
+// PlanStageStore kebutuhan worker atas plan_stages: skema tahap milik run.
+// Daftar kosong berarti run lama tanpa skema, dan worker memakai susunan awal.
+type PlanStageStore interface {
+	ListByRun(ctx context.Context, runID entity.ID) ([]entity.PlanStage, error)
+	// ReplaceByRun menulis skema satu run dalam satu transaksi (hapus lalu isi).
+	ReplaceByRun(ctx context.Context, runID entity.ID, stages []entity.PlanStage) error
 }
 
 // LLM dan Judge = port asli, tanpa duplikasi.

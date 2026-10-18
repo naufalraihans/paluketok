@@ -160,7 +160,8 @@ func newE2E(t *testing.T) *e2eEnv {
 	}
 
 	pipe := worker.New(llmMock, jc, memRunStore{st}, memProjectsSource{st},
-		memArtifacts{st}, memLedger{st}, memDecisions{st}, ids, clk.Now, discardLog())
+		memArtifacts{st}, memLedger{st}, memDecisions{st}, memPlanStages{st},
+		ids, clk.Now, discardLog())
 	pool, err := worker.NewPool(pipe, memRunStore{st}, ids, clk.Now, discardLog())
 	if err != nil {
 		t.Fatalf("pool: %v", err)
@@ -171,6 +172,9 @@ func newE2E(t *testing.T) *e2eEnv {
 
 	runUC := usecase.NewRunUsecase(base)
 	runUC.SetRegenerator(pipe)
+	// Skema tahap: pipeline yang menyusun usulannya (judge) sekaligus yang
+	// menyimpannya; satu objek dua peran.
+	runUC.SetStageProposer(pipe, memPlanStages{st})
 
 	projUC := usecase.NewProjectUsecase(base)
 	chatUC := usecase.NewChatUsecase(base)

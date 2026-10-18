@@ -24,6 +24,9 @@ const maxArtifactChars = 64 << 10
 
 // validate memeriksa draf satu tahap terhadap artefak sebelumnya.
 // prev berisi artefak yang sudah lolos (kind -> content).
+//
+// Ini jalur untuk tahap BAWAAN: perilakunya tidak berubah (test lama harus tetap
+// lulus tanpa diubah). Tahap karangan memakai validatePlanStage.
 func validate(stage entity.Stage, draft string, prev map[entity.Stage]string) error {
 	if strings.TrimSpace(draft) == "" {
 		return fmt.Errorf("artefak %s kosong", stage)
@@ -46,6 +49,101 @@ func validate(stage entity.Stage, draft string, prev map[entity.Stage]string) er
 		return validateStructure(draft, prev)
 	}
 	return fmt.Errorf("tahap tidak dikenal: %s", stage)
+}
+
+// validatePlanStage memeriksa draf satu tahap MENURUT SKEMANYA.
+//
+// Tahap bawaan tetap memakai validator lamanya supaya mutu yang sudah terbukti
+// tidak turun. Tahap karangan hanya bisa diperiksa sejauh yang bisa dihitung
+// mesin: formatnya sesuai output_format, isinya tidak kosong, dan seksi yang
+// diminta check_spec benar-benar ada. Apakah ISI seksi itu masuk akal BUKAN
+// urusan kode (lihat tugas bagian "Batas kemampuan check_spec").
+func validatePlanStage(st entity.PlanStage, draft string, prev map[entity.Stage]string) error {
+	if strings.TrimSpace(draft) == "" {
+		return fmt.Errorf("artefak %s kosong", st.Key)
+	}
+	if len(draft) > maxArtifactChars {
+		return fmt.Errorf("artefak %s melebihi %d karakter", st.Key, maxArtifactChars)
+	}
+
+	// Tahap bawaan: aturan lamanya, tidak diubah sama sekali.
+	if isBuiltinStage(st.Key) && st.OutputFormat == defaultFormat[st.Key] {
+		if err := validate(st.Key, draft, prev); err != nil {
+			return err
+		}
+	} else if err := validateFormat(st.OutputFormat, draft); err != nil {
+		return err
+	}
+
+	return checkSpec(st.Key, st.CheckSpec, draft)
+}
+
+// isBuiltinStage true untuk enam tahap yang validatornya sudah ada.
+func isBuiltinStage(k entity.Stage) bool {
+	_, ok := defaultFormat[k]
+	return ok
+}
+
+// validateFormat memeriksa bentuk keluaran sesuai output_format tahap.
+// Keluaran non-markdown harus bisa dibaca mesin, karena itu inti pembatasan
+// tiga format di tugas (menolak pdf, docx, gambar).
+func validateFormat(f entity.OutputFormat, d string) error {
+	switch f {
+	case entity.FormatMarkdown:
+		return nil
+	case entity.FormatJSON:
+		var v any
+		if err := json.Unmarshal([]byte(d), &v); err != nil {
+			return fmt.Errorf("keluaran bukan JSON valid: %w", err)
+		}
+		return nil
+	case entity.FormatDBML:
+		if len(reTable.FindAllStringSubmatch(d, -1)) == 0 {
+			return fmt.Errorf("keluaran dbml tidak memuat Table")
+		}
+		return nil
+	}
+	return fmt.Errorf("format output tidak dikenal: %s", f)
+}
+
+// checkSpec menjalankan pemeriksaan tambahan dari judge. Bentuk yang didukung
+// sengaja sedikit dan eksplisit; yang tidak dikenal diabaikan, bukan ditolak,
+// supaya spec baru tidak menjatuhkan run lama.
+//
+// ponytail: hanya "wajib_seksi" dan "wajib_ada". Tambah kunci lain bila judge
+// benar-benar diminta memakainya.
+func checkSpec(stage entity.Stage, spec json.RawMessage, d string) error {
+	if len(spec) == 0 {
+		return nil
+	}
+	var s struct {
+		WajibSeksi []string `json:"wajib_seksi"`
+		WajibAda   []string `json:"wajib_ada"`
+	}
+	if err := json.Unmarshal(spec, &s); err != nil {
+		// Spec rusak bukan alasan menggagalkan run: dilewati.
+		return nil
+	}
+	hay := strings.ToLower(d)
+	for _, sec := range s.WajibSeksi {
+		sec = strings.TrimSpace(sec)
+		if sec == "" {
+			continue
+		}
+		if !strings.Contains(hay, strings.ToLower(sec)) {
+			return fmt.Errorf("tahap %s tanpa seksi %q", stage, sec)
+		}
+	}
+	for _, sub := range s.WajibAda {
+		sub = strings.TrimSpace(sub)
+		if sub == "" {
+			continue
+		}
+		if !strings.Contains(hay, strings.ToLower(sub)) {
+			return fmt.Errorf("tahap %s tanpa %q", stage, sub)
+		}
+	}
+	return nil
 }
 
 // validatePRD: seksi wajib planner.md bagian 2 baris 1.

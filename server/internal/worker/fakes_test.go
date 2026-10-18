@@ -72,6 +72,17 @@ func (f *fakeRuns) SaveProgress(_ context.Context, id entity.ID, stage entity.St
 	return nil
 }
 
+func (f *fakeRuns) SaveTotal(_ context.Context, id entity.ID, total int) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	r, ok := f.byID[id]
+	if !ok {
+		return port.ErrNotFound
+	}
+	r.Total = total
+	return nil
+}
+
 func (f *fakeRuns) Finish(_ context.Context, id entity.ID, status entity.RunStatus, runErr string, _ time.Time) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -251,6 +262,37 @@ func (f *fakeJudge) Decide(_ context.Context, _ port.JudgeRequest) (*port.JudgeR
 			"q1": {Choice: "rekomen", Confidence: sc, Probabilities: map[string]float64{"rekomen": sc}},
 		},
 	}, nil
+}
+
+// fakePlanStages skema tahap per run. Kosong = run lama, worker pakai bawaan.
+type fakePlanStages struct {
+	mu    sync.Mutex
+	byRun map[entity.ID][]entity.PlanStage
+}
+
+func newFakePlanStages() *fakePlanStages {
+	return &fakePlanStages{byRun: map[entity.ID][]entity.PlanStage{}}
+}
+
+func (f *fakePlanStages) put(runID entity.ID, plan []entity.PlanStage) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.byRun[runID] = plan
+}
+
+func (f *fakePlanStages) ListByRun(_ context.Context, runID entity.ID) ([]entity.PlanStage, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.byRun[runID], nil
+}
+
+func (f *fakePlanStages) ReplaceByRun(_ context.Context, runID entity.ID, stages []entity.PlanStage) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	cp := make([]entity.PlanStage, len(stages))
+	copy(cp, stages)
+	f.byRun[runID] = cp
+	return nil
 }
 
 // fakeIDs urut.

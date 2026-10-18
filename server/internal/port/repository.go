@@ -95,6 +95,18 @@ type WorkerQueue interface {
 	RequeueRunning(ctx context.Context, now time.Time) (int, error)
 }
 
+// PlanStageRepo adalah akses plan_stages (skema tahap per run, migrasi 0007).
+type PlanStageRepo interface {
+	// ListByRun mengembalikan skema tahap satu run, urut position. Daftar
+	// kosong berarti run itu memakai susunan awal (run lama tanpa skema).
+	ListByRun(ctx context.Context, runID entity.ID) ([]entity.PlanStage, error)
+	// ReplaceAll menulis skema tahap lengkap untuk satu run dalam satu
+	// transaksi: baris lama dihapus, baris baru dimasukkan. Dipakai saat judge
+	// menyusun usulan, saat pengguna menyimpan suntingan, dan sebagai penjaga
+	// bila run dibuat dua kali.
+	ReplaceAll(ctx context.Context, runID entity.ID, stages []entity.PlanStage) error
+}
+
 // ArtifactRepo adalah akses artifacts dan artifact_versions.
 type ArtifactRepo interface {
 	GetByID(ctx context.Context, id entity.ID) (*entity.Artifact, error)

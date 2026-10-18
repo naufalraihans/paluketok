@@ -33,6 +33,7 @@ type Repos struct {
 	Profiles   *ProfileRepo
 	Projects   *ProjectRepo
 	Runs       *RunRepo
+	PlanStages *PlanStageRepo
 	Artifacts  *ArtifactRepo
 	Decisions  *DecisionRepo
 	Orders     *OrderRepo
@@ -46,6 +47,7 @@ func New(pool *pgxpool.Pool) *Repos {
 		Profiles:   &ProfileRepo{pool},
 		Projects:   &ProjectRepo{pool},
 		Runs:       &RunRepo{pool},
+		PlanStages: &PlanStageRepo{pool},
 		Artifacts:  &ArtifactRepo{pool},
 		Decisions:  &DecisionRepo{pool},
 		Orders:     &OrderRepo{pool},
