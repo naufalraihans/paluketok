@@ -52,8 +52,36 @@ mencakup setiap path OpenAPI. Tahap karangan pengguna tidak punya aturan seperti
 itu, dan itulah inti masalahnya. Judge harus mengembalikan cara memeriksanya
 sekalian, bukan cuma namanya.
 
+### Batas kemampuan `check_spec` (pahami dulu, ini memengaruhi Fase B)
+
+`check_spec` hanya bisa memastikan sesuatu **ADA**, tidak bisa memastikan sesuatu
+**BENAR**.
+
+Contoh nyata. PRD dapat diperiksa kuat karena bentuknya diketahui: wajib ada
+bagian Latar Belakang, Pengguna, Fitur, Kriteria Sukses. ERD dapat diperiksa
+kuat: harus DBML, tiap tabel punya PK, `Ref` hanya boleh menunjuk tabel yang ada.
+Semua itu fakta yang bisa dihitung mesin.
+
+Sekarang bayangkan pengguna minta tahap "Dokumen Legal" atau "SOP Operasional
+Toko". Untuk itu, mesin paling jauh hanya bisa memeriksa "apakah di dalamnya ada
+seksi bernama Sanksi dan Masa Berlaku". Mesin tidak bisa memeriksa apakah isi
+sanksinya masuk akal. **Itu jurang yang tidak bisa ditutup oleh kode.**
+
+Karena itu, di Fase B `output_format` DIBATASI ke tiga nilai saja: `markdown`,
+`json`, `dbml`. Judge tidak boleh mengusulkan format di luar itu (menolak PDF,
+gambar, DOCX). Pembatasan ini menjaga jurang mutu tetap kecil dan menjaga semua
+keluaran bisa diperiksa mesin.
+
+Tahap prosa seperti "Dokumen Legal" tetap BOLEH ada. Yang dibatasi cuma
+formatnya (markdown), bukan jenis isinya.
+
 Slot judge ada di tabel `ai_settings` (`slot = 'judge'`), dibaca per panggilan,
 adapternya `server/internal/adapter/judge/`.
+
+Judge BUKAN orakel. Ia dipanggil saat LLM penyusun tidak yakin dan butuh
+keputusan berbasis statistika. LLM gampang berhalusinasi, jadi usulan judge tetap
+harus bisa dikoreksi manusia sebelum dipakai. Itulah sebabnya Fase B punya layar
+konfirmasi (lihat keputusan pemilik nomor 2).
 
 ## Fase A - perbaiki sidebar + halaman dokumen
 
@@ -92,6 +120,11 @@ Selesai kalau `npm run check` bersih, `npm run build` sukses, dan
    Batas 2 sampai 12 tahap. Di luar batas, `key` duplikat, atau gagal parse:
    tolak dan pakai susunan awal enam tahap. Run tidak boleh gagal gara-gara judge
    mengembalikan yang aneh.
+   **`output_format` WAJIB salah satu dari `markdown`, `json`, `dbml`.** Judge
+   meminta format lain (PDF, DOCX, gambar) atau menaruh nilai ngawur: tolak tahap
+   itu, jangan dipakai. Batas ini bukan saran, ia yang menjaga semua keluaran
+   tetap bisa diperiksa mesin. Tulis batasnya di prompt judge juga supaya ia tidak
+   membuang percobaan.
 4. `server/internal/worker/validate.go` menerima `check_spec`. Tahap bawaan TETAP
    pakai validator lamanya, perilakunya tidak boleh berubah, 6 test lama harus
    lulus tanpa diubah. `check_spec` untuk tahap karangan. Kalau kosong, minimal
