@@ -24,6 +24,12 @@
 	} = $props();
 
 	let messages = $state<ProjectMessage[]>([]);
+	/**
+	 * Pesan pengguna yang belum dikonfirmasi server. Ditampilkan segera setelah
+	 * kirim supaya tidak ada jeda kosong, lalu DIBUANG begitu riwayat dari
+	 * server datang (server yang jadi sumber kebenaran, bukan salinan lokal).
+	 */
+	let optimistis = $state<ProjectMessage[]>([]);
 	let draft = $state('');
 	let busy = $state(false);
 	let loading = $state(true);
@@ -49,12 +55,24 @@
 
 	const tooLong = $derived(draft.trim().length > 4000);
 
-	async function kirim(): Promise<void> {
-		const text = draft.trim();
+	async function kirim(teks?: string): Promise<void> {
+		const text = (teks ?? draft).trim();
 		if (!text || busy || tooLong) return;
 		busy = true;
 		error = null;
 		draft = '';
+		// Pesan pengguna langsung tampil, jangan menunggu server. Sebelumnya
+		// teks baru muncul setelah balasan datang, jadi terasa seperti pesan
+		// hilang. Balasan pertama akan MENGGANTI pesan sementara ini dengan
+		// versi dari server (yang punya id asli), lihat `optimistis`.
+		const sementara: ProjectMessage = {
+			id: `lokal-${Date.now()}`,
+			project_id: projectId,
+			role: 'user',
+			content: text,
+			created_at: new Date().toISOString()
+		};
+		optimistis = [sementara];
 		try {
 			const reply = await sendProjectMessage(projectId, text);
 			// Muat ulang riwayat: pertanyaan + jawaban tersimpan di server, jadi
@@ -70,14 +88,33 @@
 				: msg;
 			draft = text; // jangan buang ketikan pengguna
 		} finally {
+			// Selalu bersihkan pesan sementara: kalau berhasil, riwayat server
+			// sudah memuatnya; kalau gagal, ketikan dikembalikan ke kotak input.
+			optimistis = [];
 			busy = false;
 		}
+	}
+
+	/**
+	 * Chip usul tahap dari balasan model: kirim perintah supaya tahap itu disusun.
+	 *
+	 * Sebelumnya chip ini cuma menyorot menu sidebar lewat `onsuggest`. Menu
+	 * tahap baru ada kalau artefaknya sudah jadi, sedangkan usul tahap justru
+	 * muncul SEBELUM dokumennya ada, jadi kliknya berakhir tanpa hasil apa pun
+	 * (elemen `#tahap-<stage>` belum ada di DOM). Sekarang chip mengirim
+	 * perintah nyata, dan `onsuggest` tetap dipanggil supaya sidebar ikut
+	 * menyorot begitu menunya muncul.
+	 */
+	async function susunTahap(stage: string): Promise<void> {
+		if (busy || !stage) return;
+		onsuggest?.(stage);
+		await kirim(`Susun ${stage.toUpperCase()} untuk proyek ini sekarang.`);
 	}
 
 	function onkeydown(e: KeyboardEvent): void {
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
-			void kirim();
+			void kirim(draft);
 		}
 	}
 </script>
@@ -104,7 +141,7 @@
 	<div class="flex flex-col gap-3 px-4 py-3 max-h-[380px] overflow-y-auto" data-purpose="chat-thread">
 		{#if loading}
 			<p class="text-xs text-[#94A3B8]">memuat percakapan…</p>
-		{:else if messages.length === 0}
+		{:else if messages.length === 0 && optimistis.length === 0}
 			<p class="text-xs text-[#64748B]">
 				Belum ada percakapan. Tanya apa saja soal rancangan proyek ini, misalnya
 				<span class="font-medium text-[#0F172A]">"mulai dari mana?"</span>
@@ -134,18 +171,47 @@
 						{#if m.suggested_stage}
 							<button
 								type="button"
-								onclick={() => onsuggest?.(m.suggested_stage ?? '')}
-								class="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-2.5 py-1 text-[11px] font-medium text-[#475569] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC]"
+								onclick={() => void susunTahap(m.suggested_stage ?? '')}
+								disabled={busy}
+								class="mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-2.5 py-1 text-[11px] font-medium text-[#475569] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC] disabled:opacity-50 disabled:cursor-not-allowed"
 								data-purpose="chat-suggested-stage"
 							>
 								<Icon name="sparkles" class="w-3 h-3 text-[#2563EB]" />
-								Lanjut ke {m.suggested_stage}
+								Susun {m.suggested_stage.toUpperCase()}
 							</button>
 						{/if}
 					</div>
 				{/if}
 			</div>
 		{/each}
+
+		<!-- Pesan pengguna yang baru dikirim, belum dikonfirmasi server. -->
+		{#each optimistis as m (m.id)}
+			<div class="flex justify-end">
+				<div
+					class="rounded-xl px-3 py-2 text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap bg-[#2563EB] text-white opacity-70"
+					data-purpose="chat-pending-user"
+				>
+					{m.content}
+				</div>
+			</div>
+		{/each}
+
+		<!--
+			Indikator mengetik selama menunggu balasan. Titiknya berdenyut
+			bergantian (animation-delay bertingkat), jadi terlihat hidup tanpa
+			perlu JavaScript tambahan. Selama ini ada, pengguna tahu permintaan
+			sedang diproses, bukan macet.
+		-->
+		{#if busy}
+			<div class="flex justify-start" data-purpose="chat-typing">
+				<div class="flex items-center gap-1 py-1" aria-label="Ketok Magic sedang menyusun balasan">
+					<span class="typing-dot"></span>
+					<span class="typing-dot"></span>
+					<span class="typing-dot"></span>
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	{#if error}

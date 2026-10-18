@@ -15,6 +15,7 @@ package usecase
 
 import (
 	"context"
+	"regexp"
 	"strings"
 
 	"paluketok/server/internal/entity"
@@ -61,10 +62,15 @@ func (u *ChatUsecase) SetResolver(r ProjectResolver) { u.resolve = r }
 // Diekspor agar bisa diuji langsung: yang perlu dijaga adalah ISINYA (tidak
 // menyebut produk, memakai nama proyek), dan itu tidak terlihat dari HTTP.
 func SystemPrompt(projectName string) string {
-	return `Kamu asisten perancangan untuk proyek bernama "` + projectName + `". ` +
+	return `Kamu "Ketok Magic", asisten perancangan untuk proyek bernama "` + projectName + `". ` +
+		`Kalau ditanya siapa kamu, jawab: Ketok Magic, asisten perancangan di sini. ` +
+		`Jangan pernah mengaku sebagai model AI atau produk lain, dan jangan sebut nama model, ` +
+		`vendor, atau versi apa pun. ` +
 		`Bahas HANYA proyek itu; jangan menyebut nama alat atau produk lain selain nama proyek di atas. ` +
 		`Tugasmu HANYA planning: membantu menyusun enam dokumen (PRD, ERD, OpenAPI, Role access, Proteksi, Struktur). ` +
 		`Kamu tidak menulis kode aplikasi. Balas ringkas dan konkret, dalam bahasa yang dipakai pengguna. ` +
+		`Gaya tulis: dilarang memakai em dash (—) dan en dash (–); pakai koma, titik dua, atau kurung. ` +
+		`Jangan pula memakai tanda hubung sebagai pengganti penghubung kalimat. ` +
 		`Jangan menanyakan ulang hal yang sudah tertulis di <brief> atau di <artifact>; pakai yang sudah ada. ` +
 		`Kalau brief masih terlalu tipis, ajukan satu asumsi konkret lalu minta konfirmasi singkat, ` +
 		`bukan daftar pertanyaan. ` +
@@ -125,7 +131,7 @@ func (u *ChatUsecase) SendMessage(ctx context.Context, actor entity.Actor, ref, 
 		ProjectID:      p.ID,
 		UserID:         actor.UserID,
 		Role:           "assistant",
-		Content:        strings.TrimSpace(resp.Content),
+		Content:        bersihkanGaya(resp.Content),
 		SuggestedStage: parseSuggestedStage(resp.Content),
 		Model:          resp.Model,
 		TokensIn:       resp.Usage.InputTokens,
@@ -141,8 +147,28 @@ func (u *ChatUsecase) SendMessage(ctx context.Context, actor entity.Actor, ref, 
 	return reply, nil
 }
 
-// ListMessages mengembalikan percakapan satu proyek, urut waktu (lama -> baru).
+// bersihkanGaya merapikan gaya tulis balasan model.
 //
+// Aturan em dash ada di SystemPrompt, tapi instruksi saja tidak menjamin
+// kepatuhan: model bisa lupa, terutama di balasan panjang. Jadi teksnya
+// dibersihkan sekali lagi di sini sebelum disimpan. Hasilnya deterministik dan
+// konsisten untuk semua provider, bukan bergantung pada satu model yang patuh.
+//
+// Yang diganti cuma pemisah antar klausa (spasi + dash + spasi). Tanda hubung
+// yang menempel pada kata (offline-first, role-based) tidak disentuh, dan dash
+// di dalam blok kode tidak diutak-atik karena itu bagian dari isi teknis.
+func bersihkanGaya(s string) string {
+	out := strings.TrimSpace(s)
+	// " — " / " – " jadi koma, bentuk paling netral dan tetap enak dibaca.
+	out = dashPemisah.ReplaceAllString(out, ", ")
+	return out
+}
+
+// dashPemisah cocok pada em dash (U+2014) / en dash (U+2013) yang dipakai
+// sebagai pemisah klausa: diapit spasi, atau tepat setelah tanda baca.
+var dashPemisah = regexp.MustCompile(`\s*[\x{2014}\x{2013}]\s*`)
+
+// ListMessages mengembalikan percakapan satu proyek, urut waktu (lama -> baru).
 // Page dipakai untuk MENELUSURI riwayat panjang; konteks yang dikirim ke model
 // tetap dibatasi ChatMaxHistory pesan terakhir (lihat SendMessage), jadi dua
 // batas itu tidak saling mengunci.

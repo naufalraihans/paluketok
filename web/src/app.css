@@ -260,3 +260,44 @@ body {
 	font-weight: 600;
 }
 
+/*
+  Titik indikator "sedang menyusun balasan" di chat.
+  Tiga titik, masing-masing berdenyut dengan jeda berbeda sehingga tampak
+  berjalan berurutan. Murni CSS: tidak ada timer di komponen, jadi tidak ada
+  state yang perlu dibersihkan saat balasan datang.
+*/
+.typing-dot {
+	width: 5px;
+	height: 5px;
+	border-radius: 999px;
+	background-color: #94a3b8;
+	animation: typing-pulse 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) {
+	animation-delay: 0.18s;
+}
+.typing-dot:nth-child(3) {
+	animation-delay: 0.36s;
+}
+
+@keyframes typing-pulse {
+	0%,
+	60%,
+	100% {
+		opacity: 0.35;
+		transform: translateY(0);
+	}
+	30% {
+		opacity: 1;
+		transform: translateY(-2px);
+	}
+}
+
+/* Hormati preferensi pengguna yang menolak animasi. */
+@media (prefers-reduced-motion: reduce) {
+	.typing-dot {
+		animation: none;
+		opacity: 0.6;
+	}
+}
+
