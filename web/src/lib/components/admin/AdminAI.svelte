@@ -25,8 +25,8 @@
 	];
 	// Nilai awal untuk slot judge yang belum pernah diisi: JEV, penyedia yang
 	// sudah dipakai. Setelah tersimpan, yang dipakai selalu isi database.
-	const JUDGE_DEFAULT_MODEL = 'jev-latest';
-	const JUDGE_DEFAULT_URL = 'https://api.experientiallabs.ai/v1/systemone';
+	const JUDGE_DEFAULT_MODEL = 'gpt-6-luna-decisions';
+	const JUDGE_DEFAULT_URL = 'https://api.experientiallabs.ai/v1/decisions';
 
 	let slots = $state<AISetting[]>([]);
 	let loading = $state(true);
@@ -215,13 +215,21 @@
 				/>
 			</label>
 			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1 md:col-span-2">
-				Base URL (wajib https, host non-lokal)
+				Base URL (wajib https, tulis LENGKAP sampai endpoint)
 				<input
 					bind:value={baseUrl}
 					required
-					placeholder={isJudge ? JUDGE_DEFAULT_URL : 'https://api.example.com/v1'}
+					placeholder={isJudge ? JUDGE_DEFAULT_URL : 'https://api.example.com/v1/chat/completions'}
 					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono"
 				/>
+				<span class="font-normal text-[11px] text-[#64748B]">
+					Jangan berhenti di /v1. Server tidak menambah path apa pun.
+					{#if isJudge}
+						Penilai keputusan: <code class="font-mono">.../v1/decisions</code>
+					{:else}
+						Penghasil dokumen: <code class="font-mono">.../v1/chat/completions</code>
+					{/if}
+				</span>
 			</label>
 		</div>
 		<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">

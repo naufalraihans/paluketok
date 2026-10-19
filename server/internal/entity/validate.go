@@ -30,9 +30,15 @@ func ValidID(s string) bool { return uuidRe.MatchString(s) }
 // ValidPlanTier plan_tier hanya free|pro (erd.dbml profiles.plan_tier).
 func ValidPlanTier(t PlanTier) bool { return t == TierFree || t == TierPro }
 
-// ValidBaseURLAllowlist memvalidasi base_url slot AI (security.md tabel :72):
-// HTTPS wajib, host non-lokal; daftar host dijaga admin via env koma.
-func ValidBaseURLAllowlist(raw string) error {
+// ValidBaseURLEndpoint memvalidasi base_url slot AI. Base URL wajib ditulis
+// LENGKAP sampai endpointnya, bukan cuma sampai /v1: server tidak menambah
+// path apa pun lagi, jadi tidak ada lagi tebakan yang salah.
+//
+// Contoh yang sah:
+//
+//	https://gw.example.com/v1/chat/completions   (slot planner)
+//	https://api.experientiallabs.ai/v1/decisions (slot judge)
+func ValidBaseURLEndpoint(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" {
 		return errors.New("base_url tidak valid")
@@ -43,6 +49,13 @@ func ValidBaseURLAllowlist(raw string) error {
 	host := strings.ToLower(u.Hostname())
 	if host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasSuffix(host, ".local") {
 		return errors.New("base_url host lokal tidak diizinkan")
+	}
+	// Path wajib menyebut endpointnya. "/v1" saja ditolak: itu sumber bug saat
+	// server masih menebak, dan admin jadi tidak tahu apa yang sebenarnya
+	// dipanggil.
+	path := strings.TrimRight(u.Path, "/")
+	if path == "" || path == "/v1" {
+		return errors.New("base_url wajib lengkap sampai endpoint, mis. .../v1/chat/completions atau .../v1/decisions")
 	}
 	return nil
 }

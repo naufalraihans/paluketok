@@ -6,10 +6,11 @@ package usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
-	"paluketok/server/internal/adapter/llm"
+	"paluketok/server/internal/adapter/judge"
 	"paluketok/server/internal/entity"
 	"paluketok/server/internal/port"
 )
@@ -139,7 +140,7 @@ func (u *AdminUsecase) SetAISetting(ctx context.Context, actor entity.Actor, s *
 	}
 	nilaiDefaultSlot(s)
 	// base_url harus http(s) dan host ada di allowlist (security.md bagian 12/14).
-	if err := entity.ValidBaseURLAllowlist(s.BaseURL); err != nil {
+	if err := entity.ValidBaseURLEndpoint(s.BaseURL); err != nil {
 		return ErrValidation
 	}
 	if err := u.settings.Upsert(ctx, s, actor.UserID); err != nil {
@@ -188,7 +189,7 @@ func (u *AdminUsecase) TestAISetting(ctx context.Context, actor entity.Actor, in
 	if in.BaseURL == "" || in.Model == "" {
 		return false, 0, ErrValidation
 	}
-	if err := entity.ValidBaseURLAllowlist(in.BaseURL); err != nil {
+	if err := entity.ValidBaseURLEndpoint(in.BaseURL); err != nil {
 		return false, 0, ErrValidation
 	}
 	key := in.APIKey
@@ -209,16 +210,33 @@ func (u *AdminUsecase) TestAISetting(ctx context.Context, actor entity.Actor, in
 		return false, 0, ErrValidation
 	}
 	start := time.Now()
-	// Panggilan sengaja sangat kecil: yang diuji koneksi dan izin model, bukan
-	// mutu jawaban. max_tokens kecil menekan biaya saat admin klik berkali-kali.
-	_, err := llm.New().Complete(ctx, llm.Config{BaseURL: in.BaseURL, APIKey: key, Model: in.Model},
-		port.LLMRequest{
-			Messages:  []port.LLMMessage{{Role: "user", Content: "ping"}},
-			MaxTokens: 1,
-		})
+	// Uji lewat endpoint DECISIONS, bukan chat/completions. Decisions API tidak
+	// punya fasad chat: menembak {base}/chat/completions selalu 404 dan tombol
+	// tes jadi merah padahal konfigurasinya benar.
+	//
+	// Pertanyaan kecil tanpa konsekuensi; yang diuji koneksi, auth, dan izin
+	// model. Ini panggilan yang memakan biaya, jadi hanya dijalankan saat admin
+	// menekan tombol tes.
+	_, err := judge.New(in.BaseURL, key).Decide(ctx, port.JudgeRequest{
+		Input: "Uji koneksi dari panel admin. Balas salah satu pilihan.",
+		Questions: []port.JudgeQuestion{{
+			ID: "koneksi", Type: "choice",
+			Instructions: "Balas salah satu pilihan yang tersedia.",
+			Choices: []port.JudgeChoice{
+				{Value: "ok", Description: "Koneksi dan izin model bekerja."},
+				{Value: "gagal", Description: "Model tidak sanggup menjawab."},
+			},
+		}},
+	})
 	latency := time.Since(start)
 	if err != nil {
-		if llm.IsUnavailable(err) {
+		var e *judge.ErrHTTP
+		if errors.As(err, &e) {
+			// Pesan mentah penyedia diteruskan: 400 "model tidak melayani
+			// Decisions API" harus terbaca di panel, bukan disamarkan.
+			return false, latency, wrap(fmt.Errorf("penyedia menolak (HTTP %d): %s", e.Status, e.Body))
+		}
+		if judge.IsUnavailable(err) {
 			return false, latency, nil
 		}
 		return false, latency, wrap(err)

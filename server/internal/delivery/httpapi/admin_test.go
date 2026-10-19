@@ -300,7 +300,7 @@ func TestAdmin_HappyPath(t *testing.T) {
 
 	// Settings AI: PUT lalu GET masked.
 	resp, _ = doJSON(t, srv, "PUT", "/v1/admin/settings/ai/planner", map[string]any{
-		"provider": "9router", "base_url": "https://api.example.com/v1",
+		"provider": "9router", "base_url": "https://api.example.com/v1/chat/completions",
 		"model": "gpt-x", "api_key": "sk-secret-1234567890",
 		"max_input_tokens": 8000, "max_output_tokens": 4000, "is_active": true,
 	})

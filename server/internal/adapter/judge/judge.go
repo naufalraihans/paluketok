@@ -24,17 +24,18 @@ const DefaultModel = "jev-latest"
 // Timeout http.Client penilai (docs/plan/structure.md baris 70).
 const Timeout = 30 * time.Second
 
-// errJudge error HTTP dari gateway JEV.
-type errJudge struct {
+// ErrHTTP error HTTP dari gateway penilai. Diekspor supaya pemanggil (mis.
+// tombol tes koneksi panel admin) bisa meneruskan pesan mentah penyedia.
+type ErrHTTP struct {
 	Status int
 	Body   string
 }
 
-func (e *errJudge) Error() string { return fmt.Sprintf("judge: http %d: %s", e.Status, e.Body) }
+func (e *ErrHTTP) Error() string { return fmt.Sprintf("judge: http %d: %s", e.Status, e.Body) }
 
 // IsUnavailable true bila gateway menolak/hangus (auth, 429, 5xx).
 func IsUnavailable(err error) bool {
-	var e *errJudge
+	var e *ErrHTTP
 	if !errors.As(err, &e) {
 		return false
 	}
@@ -127,7 +128,7 @@ func (c *Client) Decide(ctx context.Context, req port.JudgeRequest) (*port.Judge
 		return nil, err
 	}
 	if resp.StatusCode >= 300 {
-		return nil, &errJudge{Status: resp.StatusCode, Body: string(respRaw)}
+		return nil, &ErrHTTP{Status: resp.StatusCode, Body: string(respRaw)}
 	}
 	// Bentuk jawaban OpenAI Decisions API: answers adalah ARRAY, tiap entri
 	// punya field "name" (bukan map berkunci nama).

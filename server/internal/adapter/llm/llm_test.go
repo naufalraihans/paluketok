@@ -23,8 +23,9 @@ func TestComplete_OK(t *testing.T) {
 	defer srv.Close()
 
 	c := New()
+	// BaseURL kini endpoint PENUH: klien tidak menambah path apa pun.
 	resp, err := c.Complete(context.Background(), Config{
-		BaseURL: srv.URL, APIKey: "sk-test", Model: "uji-model",
+		BaseURL: srv.URL + "/v1/chat/completions", APIKey: "sk-test", Model: "uji-model",
 	}, port.LLMRequest{
 		Slot: "planner",
 		Messages: []port.LLMMessage{
@@ -43,7 +44,7 @@ func TestComplete_OK(t *testing.T) {
 	if gotAuth != "Bearer sk-test" {
 		t.Fatalf("auth header salah: %q", gotAuth)
 	}
-	if gotPath != "/chat/completions" {
+	if gotPath != "/v1/chat/completions" {
 		t.Fatalf("path salah: %q", gotPath)
 	}
 }

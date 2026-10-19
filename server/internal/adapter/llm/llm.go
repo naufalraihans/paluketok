@@ -1,4 +1,4 @@
-// Package llm client OpenAI-compatible (POST {base_url}/chat/completions).
+// Package llm client OpenAI-compatible. Endpoint penuh dari ai_settings.BaseURL.
 // Timeout 180 detik, tanpa auto-retry (docs/plan/structure.md, docs/plan/jev_ai.md).
 // Kredensial per slot: base_url + api_key + model dari baris ai_settings
 // (dibaca penelepon, bukan dari sini).
@@ -23,7 +23,7 @@ const Timeout = 180 * time.Second
 
 // Config satu slot dari ai_settings (erd.dbml 158-170).
 type Config struct {
-	BaseURL string // mis. https://gw.example.com/v1 (tanpa /chat/completions)
+	BaseURL string // endpoint PENUH, mis. https://gw.example.com/v1/chat/completions
 	APIKey  string
 	Model   string
 }
@@ -64,7 +64,8 @@ func New() *Client {
 	}}
 }
 
-// Complete POST /chat/completions OpenAI-compatible. Endpoint BUKAN dari klien:
+// Complete POST ke cfg.BaseURL apa adanya. Endpoint BUKAN dari klien: base_url
+// sudah memuat path lengkapnya (dijaga ValidBaseURLEndpoint).
 // hanya nilai Config dari baris ai_settings pilihan server.
 func (c *Client) Complete(ctx context.Context, cfg Config, req port.LLMRequest) (*port.LLMResponse, error) {
 	msgs := make([]map[string]string, 0, len(req.Messages))
@@ -83,7 +84,7 @@ func (c *Client) Complete(ctx context.Context, cfg Config, req port.LLMRequest) 
 	if err != nil {
 		return nil, err
 	}
-	url := strings.TrimRight(cfg.BaseURL, "/") + "/chat/completions"
+	url := strings.TrimRight(cfg.BaseURL, "/")
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(raw))
 	if err != nil {
 		return nil, err
