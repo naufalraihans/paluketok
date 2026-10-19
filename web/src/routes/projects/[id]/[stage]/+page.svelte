@@ -197,7 +197,7 @@
 						<pre
 							class="rounded-xl border border-[#E2E8F0] bg-white p-5 text-xs text-[#0F172A] overflow-x-auto whitespace-pre-wrap leading-relaxed">{artifact.content}</pre>
 					{:else if artifact}
-						<div class="rounded-xl border border-[#E2E8F0] bg-white p-6 prose-sm max-w-none">
+						<div class="md rounded-xl border border-[#E2E8F0] bg-white p-6 max-w-none">
 							<!-- mdToHtml membersihkan seluruh tag di luar daftar putih
 							     (lib/markdown.ts), jadi hasil marked aman ditempel. -->
 							{@html html}
