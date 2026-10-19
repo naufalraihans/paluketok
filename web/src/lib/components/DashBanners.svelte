@@ -17,12 +17,7 @@
 	<div class="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between shadow-xs">
 		<div>
 			<h4 class="text-base font-bold text-slate-900 mb-1.5">{pipeline.heading}</h4>
-			<p class="text-xs text-slate-500 leading-relaxed mb-4">{pipeline.body}</p>
-			<div
-				class="text-2xs font-medium text-slate-600 bg-slate-50 border border-slate-100 rounded px-2.5 py-1.5 w-fit mb-5"
-			>
-				{pipeline.chain}
-			</div>
+			<p class="text-xs text-slate-500 leading-relaxed mb-5">{pipeline.body}</p>
 		</div>
 		<div>
 			<button

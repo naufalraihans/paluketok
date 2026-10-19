@@ -1,7 +1,13 @@
 <script lang="ts">
 	import type { DashboardContent, ProjectStatus } from '#lib/mock/dashboard-types';
 
-	let { list }: { list: DashboardContent['list'] } = $props();
+	let {
+		list,
+		onArchive
+	}: {
+		list: DashboardContent['list'];
+		onArchive: (card: DashboardContent['list']['cards'][number]) => void;
+	} = $props();
 
 	// Kelas badge per status, disalin dari kartu 1/2/3 mockup.
 	const badge: Record<ProjectStatus, string> = {
@@ -18,9 +24,9 @@
 	</div>
 
 	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-		{#each list.cards as card (card.name)}
+		{#each list.cards as card (card.id ?? card.name)}
 			<article
-				class="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between hover:border-slate-300 transition-all shadow-xs"
+				class="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between hover:border-slate-300 transition-all duration-200 shadow-xs"
 				data-purpose="project-card"
 			>
 				<div>
@@ -42,10 +48,18 @@
 				</div>
 				<div class="pt-4 border-t border-slate-100">
 					<span class="text-2xs text-slate-400 block mb-2">{card.meta}</span>
-					<div class="flex items-center justify-between pt-1">
-						<span class="text-3xs bg-slate-100 text-slate-400 px-2 py-0.5 rounded">Data contoh</span>
+					<div class="flex items-center justify-end gap-2 pt-1">
+						{#if card.status !== 'archived'}
+							<button
+								class="text-2xs font-semibold px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors duration-200 cursor-pointer"
+								type="button"
+								onclick={() => onArchive(card)}
+							>
+								Arsipkan
+							</button>
+						{/if}
 						<button
-							class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer"
+							class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors duration-200 cursor-pointer"
 							type="button"
 							onclick={() => {
 								// URL proyek memakai slug (enak dibaca). UUID hanya

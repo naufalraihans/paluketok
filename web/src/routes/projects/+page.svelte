@@ -27,6 +27,9 @@
 	let newBrief = $state('');
 	let busy = $state(false);
 	let formError = $state('');
+	// Konfirmasi arsip memakai window.confirm supaya tidak menambah komponen
+	// modal hanya untuk satu aksi destruktif.
+	let archiving = $state('');
 
 	const metrics = $derived.by<DashMetric[]>(() => {
 		const ready = projects.filter((p) => p.status === 'ready').length;
@@ -137,6 +140,28 @@
 		const { createProject } = await import('#lib/api');
 		await createProject({ name: newName, brief: newBrief });
 	}
+
+	/**
+	 * Arsipkan proyek. Server menandai `archived`, tidak menghapus baris, jadi
+	 * artefak dan riwayatnya tetap utuh bila proyek dibuka lagi.
+	 */
+	async function archive(card: ProjectCard) {
+		if (!card.id || archiving) return;
+		const ok = window.confirm(
+			`Arsipkan "${card.name}"?\n\nProyek tidak dihapus permanen. Dokumen dan riwayatnya tetap tersimpan, dan proyek bisa dibuka lagi kapan saja.`
+		);
+		if (!ok) return;
+		archiving = card.id;
+		try {
+			const { archiveProject } = await import('#lib/api');
+			await archiveProject(card.slug ?? card.id);
+			await load();
+		} catch (e) {
+			formError = e instanceof Error ? e.message : 'Gagal mengarsipkan proyek';
+		} finally {
+			archiving = '';
+		}
+	}
 </script>
 
 <svelte:head>
@@ -197,7 +222,7 @@
 			{:else}
 				<DashHero hero={content.hero} createLabel={content.createLabel} />
 				<DashMetrics metrics={content.metrics} />
-				<DashProjectList list={content.list} />
+				<DashProjectList list={content.list} onArchive={archive} />
 			{/if}
 
 			{#if showCreate}

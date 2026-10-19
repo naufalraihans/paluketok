@@ -80,8 +80,8 @@ export const dashboard: DashboardContent = {
 	},
 	pipeline: {
 		heading: 'Dari brief ke planning',
-		body: 'Buat proyek tanpa biaya kredit. Saat brief siap, mulai generate untuk menyusun enam dokumen secara berurutan.',
-		chain: 'prd → erd → openapi → roles → security → structure',
+		body: 'Buat proyek tanpa biaya kredit. Saat brief siap, AI menyusun susunan tahapnya lebih dulu, kamu tinjau sebentar, lalu mulai generate.',
+		chain: '',
 		action: 'Buat proyek baru'
 	},
 	balance: {

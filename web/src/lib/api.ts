@@ -88,6 +88,9 @@ function patch<T>(path: string, body?: unknown): Promise<T> {
 function put<T>(path: string, body?: unknown): Promise<T> {
 	return request<T>('PUT', path, body ?? {});
 }
+function del<T>(path: string): Promise<T> {
+	return request<T>('DELETE', path);
+}
 
 // --- /v1/me ---
 export type Me = {
@@ -130,6 +133,12 @@ export const listProjects = () => get<{ projects: Project[] }>('/v1/projects');
 export const getProject = (ref: string) => get<Project>(`/v1/projects/${ref}`);
 export const createProject = (input: { name: string; brief: string; stack?: Stack }) =>
 	post<Project>('/v1/projects', { stack: {}, ...input });
+/**
+ * Arsipkan proyek. Server TIDAK menghapus barisnya: `status` jadi `archived`
+ * (docs/plan/erd.md "Aturan status"), jadi artefak dan riwayatnya tetap ada.
+ */
+export const archiveProject = (ref: string) =>
+	del<{ status: string }>(`/v1/projects/${ref}`);
 
 // --- runs & artifacts ---
 /**
