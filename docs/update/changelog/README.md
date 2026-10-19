@@ -3,6 +3,11 @@
 Urut baru di atas. Satu baris per perubahan; yang besar punya berkasnya sendiri
 di folder ini.
 
+## 2026-10-19
+
+- **[0012](./0012-render-markdown-halaman-dokumen.md)** - Halaman dokumen pakai kelas `.md`, bukan `prose-sm`. Alasan: plugin typography tidak terpasang sehingga isi tampil sebagai teks polos.
+- **[0011](./0011-tahap-dinamis.md)** - Tahap planning dinamis, halaman tahap per URL, layar konfirmasi skema. Termasuk catatan pasca-deploy: RLS `plan_stages` tidak aktif secara bawaan dan sudah ditutup.
+
 ## 2026-10-18
 
 - **[0010](./0010-plan-dipindah-ke-docs.md)** - Folder `plan/` dipindah ke `docs/plan/`. 108 rujukan di kode, README, dan dokumen ikut diperbaiki. Alasan: semua dokumen dalam satu tempat.
