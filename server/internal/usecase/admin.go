@@ -217,7 +217,12 @@ func (u *AdminUsecase) TestAISetting(ctx context.Context, actor entity.Actor, in
 	// Pertanyaan kecil tanpa konsekuensi; yang diuji koneksi, auth, dan izin
 	// model. Ini panggilan yang memakan biaya, jadi hanya dijalankan saat admin
 	// menekan tombol tes.
-	_, err := judge.New(in.BaseURL, key).Decide(ctx, port.JudgeRequest{
+	// Model WAJIB dari form. Tanpa ini client jatuh ke judge.DefaultModel
+	// ("jev-latest"), yang ditolak Decisions API dengan 400 walaupun form sudah
+	// berisi model yang benar.
+	jc := judge.New(in.BaseURL, key)
+	jc.Model = in.Model
+	_, err := jc.Decide(ctx, port.JudgeRequest{
 		Input: "Uji koneksi dari panel admin. Balas salah satu pilihan.",
 		Questions: []port.JudgeQuestion{{
 			ID: "koneksi", Type: "choice",

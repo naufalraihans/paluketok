@@ -45,6 +45,12 @@ func IsUnavailable(err error) bool {
 
 // Client penilai. BaseURL tanpa trailing slash, mis.
 // https://api.experientiallabs.ai/v1/systemone.
+// HTTPClient dipakai semua Client. Diekspor sebagai seam tes: paket lain
+// (mis. usecase) perlu mengarahkan panggilan ke server palsu, sedangkan
+// ValidBaseURLEndpoint menolak host lokal sehingga URL httptest tidak bisa
+// dipakai langsung.
+var HTTPClient = &http.Client{Timeout: Timeout}
+
 type Client struct {
 	BaseURL string // dari konfigurasi server, bukan dari klien
 	APIKey  string // hanya di server
@@ -55,7 +61,7 @@ type Client struct {
 }
 
 func New(baseURL, apiKey string) *Client {
-	return &Client{BaseURL: baseURL, APIKey: apiKey, http: &http.Client{Timeout: Timeout}}
+	return &Client{BaseURL: baseURL, APIKey: apiKey, http: HTTPClient}
 }
 
 // questionChoices merangkum pilihan tiap pertanyaan untuk kolom decisions.criteria.
