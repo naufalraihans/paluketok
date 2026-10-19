@@ -7,28 +7,24 @@
 		type AISettingInput
 	} from '#lib/api';
 
-	// Tab AI Settings: dua slot di ai_settings (SlotLLM + SlotJudge di BE).
-	//   planner = LLM penyusun enam dokumen planning
-	//   judge   = gateway penilai keputusan (AI judge; model & endpoint apa pun,
-	//             bukan cuma JEV. JEV cuma salah satu penyedianya)
+	// Hanya URL yang perlu diisi admin. token, model, dan provider TIDAK
+	// ditanyakan: nilainya diisi server saat baris dibuat (lihat defaultSlot),
+	// karena admin tidak mungkin tahu batas token tiap penyedia.
 	// PUT tanpa api_key berarti memakai key tersimpan (mask tak boleh dikirim balik).
-	const SLOTS: { id: string; label: string; hint: string; modelLocked: boolean }[] = [
+	const SLOTS: { id: string; label: string; hint: string }[] = [
 		{
 			id: 'planner',
 			label: 'Planner LLM',
-			hint: 'Penyusun enam dokumen. Isi base URL, model, dan API key penyedia.',
-			modelLocked: false
+			hint: 'Penyusun dokumen planning. Isi base URL dan API key penyedia.'
 		},
 		{
 			id: 'judge',
 			label: 'AI Judge',
-			hint: 'Penilai keputusan. Isi base URL, model, dan API key penyedia penilai.',
-			modelLocked: false
+			hint: 'Penilai keputusan, dipanggil saat penyusun ragu. Isi base URL dan API key.'
 		}
 	];
 	// Nilai awal untuk slot judge yang belum pernah diisi: JEV, penyedia yang
 	// sudah dipakai. Setelah tersimpan, yang dipakai selalu isi database.
-	const JUDGE_DEFAULT_MODEL = 'jev-latest';
 	const JUDGE_DEFAULT_URL = 'https://api.experientiallabs.ai/v1/systemone';
 
 	let slots = $state<AISetting[]>([]);
@@ -39,11 +35,7 @@
 
 	let selected = $state('planner');
 	let apiKey = $state('');
-	let provider = $state('');
 	let baseUrl = $state('');
-	let model = $state('');
-	let maxIn = $state(8000);
-	let maxOut = $state(2000);
 	let active = $state(true);
 
 	const meta = $derived(SLOTS.find((s) => s.id === selected) ?? SLOTS[0]);
@@ -54,12 +46,7 @@
 
 	function pick(slotId: string, s?: AISetting): void {
 		selected = slotId;
-		const adalahJudge = slotId === 'judge';
-		provider = s?.provider ?? (adalahJudge ? 'jev' : '');
-		baseUrl = s?.base_url ?? (adalahJudge ? JUDGE_DEFAULT_URL : '');
-		model = s?.model ?? (adalahJudge ? JUDGE_DEFAULT_MODEL : '');
-		maxIn = s?.max_input_tokens || 8000;
-		maxOut = s?.max_output_tokens || 2000;
+		baseUrl = s?.base_url ?? (slotId === 'judge' ? JUDGE_DEFAULT_URL : '');
 		active = s?.is_active ?? true;
 		apiKey = '';
 		msg = '';
@@ -72,13 +59,12 @@
 		err = '';
 		msg = '';
 		try {
+			// provider, model, dan batas token sengaja TIDAK dikirim: server
+			// memakai nilai lama atau nilai awal per slot. Mengirim 0 akan
+			// ditimpa server, dan mengirim angka karangan lebih buruk.
 			const body: AISettingInput = {
 				slot: selected,
-				provider,
 				base_url: baseUrl.trim(),
-				model: model.trim(),
-				max_input_tokens: maxIn,
-				max_output_tokens: maxOut,
 				is_active: active
 			};
 			if (apiKey.trim()) body.api_key = apiKey.trim();
@@ -187,24 +173,6 @@
 			</p>
 		{/if}
 		<div class="grid gap-3 md:grid-cols-2">
-			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
-				Provider
-				<input
-					bind:value={provider}
-					required
-					placeholder={selected === 'judge' ? 'jev' : 'openai-compatible'}
-					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs"
-				/>
-			</label>
-			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
-				Model
-				<input
-					bind:value={model}
-					required
-					placeholder="gpt-4o-mini"
-					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs"
-				/>
-			</label>
 			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1 md:col-span-2">
 				Base URL (wajib https, host non-lokal)
 				<input
@@ -214,27 +182,11 @@
 					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono"
 				/>
 			</label>
-			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
-				Max input tokens
-				<input
-					type="number"
-					min="1"
-					bind:value={maxIn}
-					required
-					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs"
-				/>
-			</label>
-			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
-				Max output tokens
-				<input
-					type="number"
-					min="1"
-					bind:value={maxOut}
-					required
-					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs"
-				/>
-			</label>
 		</div>
+		<p class="text-xs text-[#64748B]">
+			Model, provider, dan batas token diisi server dengan nilai awal per slot. Tidak perlu
+			diisi di sini.
+		</p>
 		<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
 			API key (isi ulang untuk mengganti; kosongkan bila tetap)
 			<input

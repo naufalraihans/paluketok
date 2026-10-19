@@ -117,7 +117,28 @@ func (u *AdminUsecase) SetAISetting(ctx context.Context, actor entity.Actor, s *
 	if err := adminOnly(actor); err != nil {
 		return err
 	}
-	if s.Slot == "" || s.BaseURL == "" || s.Model == "" {
+	if s.Slot == "" || s.BaseURL == "" {
+		return ErrValidation
+	}
+	// model, provider, dan batas token TIDAK diminta dari admin: kolomnya
+	// NOT NULL tanpa default, dan admin tidak mungkin tahu batas token tiap
+	// penyedia. Isi dari slot lama bila ada, sisanya dari nilaiDefaultSlot.
+	if old, err := u.settings.Get(ctx, s.Slot); err == nil && old != nil {
+		if s.Model == "" {
+			s.Model = old.Model
+		}
+		if s.Provider == "" {
+			s.Provider = old.Provider
+		}
+		if s.MaxInputTokens == 0 {
+			s.MaxInputTokens = old.MaxInputTokens
+		}
+		if s.MaxOutputTokens == 0 {
+			s.MaxOutputTokens = old.MaxOutputTokens
+		}
+	}
+	nilaiDefaultSlot(s)
+	if s.Model == "" {
 		return ErrValidation
 	}
 	// base_url harus http(s) dan host ada di allowlist (security.md bagian 12/14).
@@ -128,6 +149,36 @@ func (u *AdminUsecase) SetAISetting(ctx context.Context, actor entity.Actor, s *
 		return wrap(err)
 	}
 	return nil
+}
+
+// nilaiDefaultSlot mengisi kolom yang tidak diisi admin, HANYA bila slot ini
+// belum pernah ada di database. Admin cukup mengisi base_url dan api_key.
+//
+// Batas token diambil dari penyedia masing-masing: judge JEV memakai
+// 8000/2000 (nilai yang sudah dipakai di produksi), planner 32000/8000.
+// Angka ini cuma nilai awal, bukan batas atas: admin tetap boleh menimpanya
+// lewat API bila penyedianya sanggup lebih.
+func nilaiDefaultSlot(s *port.AISetting) {
+	if s.Provider == "" {
+		s.Provider = s.Slot
+	}
+	if s.Model == "" && s.Slot == "judge" {
+		s.Model = "jev-latest"
+	}
+	if s.MaxInputTokens <= 0 {
+		s.MaxInputTokens = 8000
+	}
+	if s.MaxOutputTokens <= 0 {
+		s.MaxOutputTokens = 2000
+	}
+	if s.Slot == "planner" {
+		if s.MaxInputTokens == 8000 {
+			s.MaxInputTokens = 32000
+		}
+		if s.MaxOutputTokens == 2000 {
+			s.MaxOutputTokens = 8000
+		}
+	}
 }
 
 // maskKey: tampil 4 karakter pertama + "..." + 4 terakhir (contoh openapi.md).

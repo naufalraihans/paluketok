@@ -291,7 +291,14 @@ export type AISetting = {
 };
 // PUT body: api_key HANYA disertakan bila user mengetik nilai baru (masked
 // dari GET tak boleh dikirim balik, akan tersimpan sebagai "abcd...wxyz").
-export type AISettingInput = Omit<AISetting, 'api_key'> & { api_key?: string };
+// provider, model, dan batas token juga tidak dikirim: server mengisinya dari
+// nilai lama atau nilai awal per slot, jadi admin cukup mengisi base_url.
+export type AISettingInput = {
+	slot: string;
+	base_url: string;
+	is_active: boolean;
+	api_key?: string;
+};
 export const adminListAISettings = () => get<{ slots: AISetting[] }>('/v1/admin/settings/ai');
 export const adminSetAISetting = (slot: string, body: AISettingInput) =>
 	put<{ slot: string; is_active: boolean }>(`/v1/admin/settings/ai/${encodeURIComponent(slot)}`, body);
