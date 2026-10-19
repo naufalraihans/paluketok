@@ -107,11 +107,25 @@ Selesai kalau `npm run check` bersih, `npm run build` sukses, dan
 
 ## Fase B - skema tahap dinamis
 
-1. Migrasi baru `server/database/migrations/0002_plan_stages.sql`. Tabel
-   `plan_stages`: `id`, `run_id` (FK `plan_runs` cascade), `key` (slug), `label`,
-   `position`, `intent`, `output_format`, `check_spec` (jsonb), `depends_on`
-   (text[]), `created_at`. Unik `(run_id, key)`. Aditif saja, tabel lama jangan
-   diubah.
+1. Migrasi baru di `server/database/migrations/`. **Cek dulu nomor yang sudah
+   terpakai** (`ls database/migrations/`), jangan asal menebak. Saat prompt ini
+   ditulis, yang terpakai sampai `0007`, jadi migrasi barumu mulai dari `0008`.
+   Tabel `plan_stages`: `id`, `run_id` (FK `plan_runs` cascade), `key` (slug),
+   `label`, `position`, `intent`, `output_format`, `check_spec` (jsonb),
+   `depends_on` (text[]), `created_at`. Unik `(run_id, key)`. Aditif saja, tabel
+   lama jangan diubah.
+   **WAJIB di akhir berkas migrasi:**
+   ```sql
+   alter table public.plan_stages enable row level security;
+   revoke all on public.plan_stages from anon, authenticated;
+   ```
+   **`create table` TIDAK mengaktifkan RLS secara bawaan, dan role anon mewarisi
+   GRANT dari skema public.** Ini sudah terbukti di Supabase prod pada migrasi
+   `0007`: tanpa dua baris itu, siapa pun tanpa login bisa membaca seluruh isi
+   tabel. Jangan percaya anggapan bahwa tabel baru otomatis tertutup. Periksa
+   setelah migrasi dengan
+   `select has_table_privilege('anon','plan_stages','select');` dan pastikan
+   hasilnya `false`.
 2. `entity.PlanStage` struct. `entity.Stages` turun pangkat jadi nilai awal,
    bukan satu-satunya kemungkinan. `plan_runs.total` diisi jumlah baris
    `plan_stages`.

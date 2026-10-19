@@ -51,7 +51,16 @@ create index if not exists ix_plan_stages_run_position
 create unique index if not exists uq_plan_stages_run_key
   on public.plan_stages (run_id, key);
 
--- Tidak ada grant ke anon/authenticated: tabel ini hanya diakses server lewat
--- koneksi pemilik database (pola yang sama dengan credits_ledger/ai_settings di
--- 0002_grants_and_guard.sql). RLS aktif bawaan -> klien tidak bisa membaca skema
--- tahap proyek orang lain.
+-- RLS dan cabut grant: WAJIB, bukan opsional.
+--
+-- Ditemukan saat migrasi ini dijalankan di Supabase prod (Postgres 18.3):
+-- "create table" TIDAK mengaktifkan RLS secara bawaan, dan role anon mewarisi
+-- GRANT dari skema public. Tanpa dua baris di bawah, siapa pun tanpa login bisa
+-- membaca seluruh plan_stages. Diverifikasi: sebelum perbaikan
+-- anon_bisa_baca=true, sesudahnya false.
+--
+-- Tabel ini hanya diakses server lewat koneksi pemilik database, pola yang sama
+-- dengan credits_ledger dan ai_settings di 0002_grants_and_guard.sql.
+alter table public.plan_stages enable row level security;
+revoke all on public.plan_stages from anon, authenticated;
+

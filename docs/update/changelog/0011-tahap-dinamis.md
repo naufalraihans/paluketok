@@ -93,4 +93,32 @@ selesai dengan `progress = 2`, `total = 3`). Ini perilaku lama yang tidak diubah
   biayanya jadi keluhan.
 - Tidak ada endpoint daftar riwayat run. Halaman riwayat belum dibangun, dan UI
   memakai `latest_run` yang sudah ada.
-- Migrasi belum dijalankan di Supabase prod. Perlu izin pemilik.
+
+## Catatan pasca-deploy (2026-10-19)
+
+Migrasi `0007` sudah dijalankan di Supabase prod (project `uzlpexcixmffbjxaomwv`)
+setelah `pg_dump` ke berkas
+`MAINTENANCE/paluketok_prod_20261019_025725.dump`
+(424421 byte, format custom).
+
+Data sebelum dan sesudah migrasi identik: `projects` 3, `plan_runs` 2,
+`artifacts` 2, `profiles` 3, `plan_stages` 0 baris.
+
+**Temuan penting: RLS tidak aktif secara bawaan.** Berkas migrasi aslinya
+berkomentar "RLS aktif bawaan", dan itu keliru. Hasil pemeriksaan di prod:
+
+```
+sebelum perbaikan   rls=false   anon_bisa_baca=true    <- terbuka
+sesudah perbaikan   rls=true    anon_bisa_baca=false
+```
+
+Berkas `0007_plan_stages.sql` sudah diperbaiki: dua baris
+`enable row level security` + `revoke all ... from anon, authenticated`
+ditambahkan, dengan komentar yang menjelaskan sebabnya. Migrasi diuji ulang di
+prod dan idempoten (aman dijalankan dua kali). Prompt AI eksekutor juga
+diperbaiki supaya tidak mengulang kesalahan yang sama.
+
+Deploy: commit `5962ada` lewat branch `feat/tahap-dinamis`, merge ke `main`,
+CI `39161274403` sukses 53 detik. Prod terverifikasi: healthz 200, layanan
+`active`, binary memuat `plan_stages` dan `Pilih susunan tahap`, bundle FE
+memuat halaman tahap ("Dokumen ini belum disusun").
