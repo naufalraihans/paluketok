@@ -6,7 +6,10 @@ package usecase
 import (
 	"context"
 	"errors"
+	"os"
+	"time"
 
+	"paluketok/server/internal/adapter/llm"
 	"paluketok/server/internal/entity"
 	"paluketok/server/internal/port"
 )
@@ -117,16 +120,13 @@ func (u *AdminUsecase) SetAISetting(ctx context.Context, actor entity.Actor, s *
 	if err := adminOnly(actor); err != nil {
 		return err
 	}
-	if s.Slot == "" || s.BaseURL == "" {
+	if s.Slot == "" || s.BaseURL == "" || s.Model == "" {
 		return ErrValidation
 	}
 	// model, provider, dan batas token TIDAK diminta dari admin: kolomnya
 	// NOT NULL tanpa default, dan admin tidak mungkin tahu batas token tiap
 	// penyedia. Isi dari slot lama bila ada, sisanya dari nilaiDefaultSlot.
 	if old, err := u.settings.Get(ctx, s.Slot); err == nil && old != nil {
-		if s.Model == "" {
-			s.Model = old.Model
-		}
 		if s.Provider == "" {
 			s.Provider = old.Provider
 		}
@@ -138,9 +138,6 @@ func (u *AdminUsecase) SetAISetting(ctx context.Context, actor entity.Actor, s *
 		}
 	}
 	nilaiDefaultSlot(s)
-	if s.Model == "" {
-		return ErrValidation
-	}
 	// base_url harus http(s) dan host ada di allowlist (security.md bagian 12/14).
 	if err := entity.ValidBaseURLAllowlist(s.BaseURL); err != nil {
 		return ErrValidation
@@ -152,7 +149,7 @@ func (u *AdminUsecase) SetAISetting(ctx context.Context, actor entity.Actor, s *
 }
 
 // nilaiDefaultSlot mengisi kolom yang tidak diisi admin, HANYA bila slot ini
-// belum pernah ada di database. Admin cukup mengisi base_url dan api_key.
+// belum pernah ada di database. Admin cukup mengisi base_url, model, dan api_key.
 //
 // Batas token diambil dari penyedia masing-masing: judge JEV memakai
 // 8000/2000 (nilai yang sudah dipakai di produksi), planner 32000/8000.
@@ -161,9 +158,6 @@ func (u *AdminUsecase) SetAISetting(ctx context.Context, actor entity.Actor, s *
 func nilaiDefaultSlot(s *port.AISetting) {
 	if s.Provider == "" {
 		s.Provider = s.Slot
-	}
-	if s.Model == "" && s.Slot == "judge" {
-		s.Model = "jev-latest"
 	}
 	if s.MaxInputTokens <= 0 {
 		s.MaxInputTokens = 8000
@@ -179,6 +173,57 @@ func nilaiDefaultSlot(s *port.AISetting) {
 			s.MaxOutputTokens = 8000
 		}
 	}
+}
+
+// TestAISetting memanggil penyedia dengan kredensial yang ada di form, TANPA
+// menyimpan apa pun. api_key kosong = pakai key tersimpan di slot itu, supaya
+// admin bisa menguji tanpa mengetik ulang key yang sudah tersimpan.
+//
+// Hasil pertama selalu dicoba sebagai model dari form; kalau modelnya kosong,
+// dipakai model tersimpan.
+func (u *AdminUsecase) TestAISetting(ctx context.Context, actor entity.Actor, in port.AISetting) (bool, time.Duration, error) {
+	if err := adminOnly(actor); err != nil {
+		return false, 0, err
+	}
+	if in.BaseURL == "" || in.Model == "" {
+		return false, 0, ErrValidation
+	}
+	if err := entity.ValidBaseURLAllowlist(in.BaseURL); err != nil {
+		return false, 0, ErrValidation
+	}
+	key := in.APIKey
+	if key == "" && u.settings != nil {
+		if old, err := u.settings.Get(ctx, in.Slot); err == nil && old != nil {
+			key = old.APIKey
+		}
+	}
+	// Key dari env dipakai sebagai cadangan terakhir supaya tombol ini tetap
+	// berguna saat slot belum pernah disimpan (mis. pasang baru).
+	if key == "" {
+		key = os.Getenv("JEV_API_KEY")
+		if key == "" {
+			key = os.Getenv("PLANNER_LLM_API_KEY")
+		}
+	}
+	if key == "" {
+		return false, 0, ErrValidation
+	}
+	start := time.Now()
+	// Panggilan sengaja sangat kecil: yang diuji koneksi dan izin model, bukan
+	// mutu jawaban. max_tokens kecil menekan biaya saat admin klik berkali-kali.
+	_, err := llm.New().Complete(ctx, llm.Config{BaseURL: in.BaseURL, APIKey: key, Model: in.Model},
+		port.LLMRequest{
+			Messages:  []port.LLMMessage{{Role: "user", Content: "ping"}},
+			MaxTokens: 1,
+		})
+	latency := time.Since(start)
+	if err != nil {
+		if llm.IsUnavailable(err) {
+			return false, latency, nil
+		}
+		return false, latency, wrap(err)
+	}
+	return true, latency, nil
 }
 
 // maskKey: tampil 4 karakter pertama + "..." + 4 terakhir (contoh openapi.md).

@@ -167,6 +167,34 @@ func (h *Handlers) AdminSetAISetting(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{"slot": slot, "is_active": s.IsActive})
 }
 
+// --- POST /v1/admin/settings/ai/test (uji koneksi, tanpa menyimpan) ---
+func (h *Handlers) AdminTestAISetting(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Slot    string `json:"slot"`
+		BaseURL string `json:"base_url"`
+		Model   string `json:"model"`
+		APIKey  string `json:"api_key"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&body); err != nil {
+		response.JSON(w, http.StatusUnprocessableEntity, map[string]any{"error": response.ErrorBody{Code: response.CodeValidation, Message: "body tidak valid"}})
+		return
+	}
+	ok, latency, err := h.Admin.TestAISetting(r.Context(), actorFrom(r), port.AISetting{
+		Slot: body.Slot, BaseURL: body.BaseURL, Model: body.Model, APIKey: body.APIKey,
+	})
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	msg := "Koneksi berhasil. Model menjawab."
+	if !ok {
+		msg = "Server terjangkau, tapi model tidak menjawab seperti yang diharapkan."
+	}
+	response.JSON(w, http.StatusOK, map[string]any{
+		"ok": ok, "message": msg, "latency_ms": latency.Milliseconds(),
+	})
+}
+
 // --- GET /v1/artifacts/{id} (owner; openapi.md baris 20) ---
 func (h *Handlers) GetArtifact(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r, "id")

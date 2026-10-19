@@ -296,9 +296,19 @@ export type AISetting = {
 export type AISettingInput = {
 	slot: string;
 	base_url: string;
+	model: string;
 	is_active: boolean;
+	api_key?: string;
+};
+/** Uji koneksi ke penyedia tanpa menyimpan apa pun. api_key kosong = pakai tersimpan. */
+export type AISettingTestInput = {
+	slot: string;
+	base_url: string;
+	model: string;
 	api_key?: string;
 };
 export const adminListAISettings = () => get<{ slots: AISetting[] }>('/v1/admin/settings/ai');
 export const adminSetAISetting = (slot: string, body: AISettingInput) =>
 	put<{ slot: string; is_active: boolean }>(`/v1/admin/settings/ai/${encodeURIComponent(slot)}`, body);
+export const adminTestAISetting = (body: AISettingTestInput) =>
+	post<{ ok: boolean; message: string; latency_ms: number }>('/v1/admin/settings/ai/test', body);

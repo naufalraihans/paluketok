@@ -83,6 +83,7 @@ func NewRouter(o RouterOptions) http.Handler {
 	admin.HandleFunc("GET /v1/admin/decisions", o.Handlers.AdminListDecisions)
 	admin.HandleFunc("GET /v1/admin/settings/ai", o.Handlers.AdminListAISettings)
 	admin.HandleFunc("PUT /v1/admin/settings/ai/{slot}", o.Handlers.AdminSetAISetting)
+	admin.HandleFunc("POST /v1/admin/settings/ai/test", o.Handlers.AdminTestAISetting)
 
 	// Rate limit (security.md bagian 8): key per user dari Actor (fallback IP).
 	// POST /runs 5/menit (jatah sendiri, keep), endpoint user lain 60/menit.

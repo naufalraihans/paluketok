@@ -7,24 +7,25 @@
 		type AISettingInput
 	} from '#lib/api';
 
-	// Hanya URL yang perlu diisi admin. token, model, dan provider TIDAK
-	// ditanyakan: nilainya diisi server saat baris dibuat (lihat defaultSlot),
-	// karena admin tidak mungkin tahu batas token tiap penyedia.
+	// Hanya URL, model, dan API key yang diisi admin. Batas token TIDAK
+	// ditanyakan: admin tidak mungkin tahu angkanya, dan server mengisinya dari
+	// nilai lama atau nilai awal per slot (lihat nilaiDefaultSlot di BE).
 	// PUT tanpa api_key berarti memakai key tersimpan (mask tak boleh dikirim balik).
 	const SLOTS: { id: string; label: string; hint: string }[] = [
 		{
 			id: 'planner',
 			label: 'Planner LLM',
-			hint: 'Penyusun dokumen planning. Isi base URL dan API key penyedia.'
+			hint: 'Penyusun dokumen planning. Isi base URL, nama model, dan API key penyedia.'
 		},
 		{
 			id: 'judge',
 			label: 'AI Judge',
-			hint: 'Penilai keputusan, dipanggil saat penyusun ragu. Isi base URL dan API key.'
+			hint: 'Penilai keputusan, dipanggil saat penyusun ragu. Isi base URL, nama model, dan API key.'
 		}
 	];
 	// Nilai awal untuk slot judge yang belum pernah diisi: JEV, penyedia yang
 	// sudah dipakai. Setelah tersimpan, yang dipakai selalu isi database.
+	const JUDGE_DEFAULT_MODEL = 'jev-latest';
 	const JUDGE_DEFAULT_URL = 'https://api.experientiallabs.ai/v1/systemone';
 
 	let slots = $state<AISetting[]>([]);
@@ -32,10 +33,14 @@
 	let err = $state('');
 	let msg = $state('');
 	let busy = $state(false);
+	let testing = $state(false);
+	let testMsg = $state('');
+	let testErr = $state('');
 
 	let selected = $state('planner');
 	let apiKey = $state('');
 	let baseUrl = $state('');
+	let model = $state('');
 	let active = $state(true);
 
 	const meta = $derived(SLOTS.find((s) => s.id === selected) ?? SLOTS[0]);
@@ -47,10 +52,37 @@
 	function pick(slotId: string, s?: AISetting): void {
 		selected = slotId;
 		baseUrl = s?.base_url ?? (slotId === 'judge' ? JUDGE_DEFAULT_URL : '');
+		model = s?.model ?? (slotId === 'judge' ? JUDGE_DEFAULT_MODEL : '');
 		active = s?.is_active ?? true;
 		apiKey = '';
 		msg = '';
 		err = '';
+		testMsg = '';
+		testErr = '';
+	}
+
+	// Cek koneksi tanpa menyimpan apa pun: kirim base_url/key/model yang ada di
+	// form ke server, server yang memanggil penyedia. Key tidak pernah dikirim
+	// dari browser langsung ke penyedia.
+	async function test(): Promise<void> {
+		if (testing) return;
+		testing = true;
+		testMsg = '';
+		testErr = '';
+		try {
+			const { adminTestAISetting } = await import('#lib/api');
+			const r = await adminTestAISetting({
+				slot: selected,
+				base_url: baseUrl.trim(),
+				model: model.trim(),
+				api_key: apiKey.trim() || undefined
+			});
+			testMsg = r.message;
+		} catch (e) {
+			testErr = e instanceof Error ? e.message : 'Uji koneksi gagal';
+		} finally {
+			testing = false;
+		}
 	}
 
 	async function save(): Promise<void> {
@@ -59,12 +91,12 @@
 		err = '';
 		msg = '';
 		try {
-			// provider, model, dan batas token sengaja TIDAK dikirim: server
-			// memakai nilai lama atau nilai awal per slot. Mengirim 0 akan
-			// ditimpa server, dan mengirim angka karangan lebih buruk.
+			// Batas token sengaja TIDAK dikirim: server memakai nilai lama
+			// atau nilai awal per slot. Admin tidak mungkin tahu angkanya.
 			const body: AISettingInput = {
 				slot: selected,
 				base_url: baseUrl.trim(),
+				model: model.trim(),
 				is_active: active
 			};
 			if (apiKey.trim()) body.api_key = apiKey.trim();
@@ -173,6 +205,15 @@
 			</p>
 		{/if}
 		<div class="grid gap-3 md:grid-cols-2">
+			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
+				Nama model
+				<input
+					bind:value={model}
+					required
+					placeholder={isJudge ? JUDGE_DEFAULT_MODEL : 'gpt-4o-mini'}
+					class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono"
+				/>
+			</label>
 			<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1 md:col-span-2">
 				Base URL (wajib https, host non-lokal)
 				<input
@@ -183,10 +224,6 @@
 				/>
 			</label>
 		</div>
-		<p class="text-xs text-[#64748B]">
-			Model, provider, dan batas token diisi server dengan nilai awal per slot. Tidak perlu
-			diisi di sini.
-		</p>
 		<label class="text-xs font-semibold text-[#475569] flex flex-col gap-1">
 			API key (isi ulang untuk mengganti; kosongkan bila tetap)
 			<input
@@ -197,7 +234,7 @@
 				class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono"
 			/>
 		</label>
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-3 flex-wrap">
 			<button
 				type="submit"
 				disabled={busy}
@@ -205,7 +242,17 @@
 			>
 				{busy ? 'Menyimpan...' : 'Simpan slot'}
 			</button>
+			<button
+				type="button"
+				disabled={testing || !baseUrl.trim() || !model.trim()}
+				onclick={test}
+				class="px-4 py-2 rounded-lg text-xs font-semibold border border-slate-200 text-slate-800 hover:bg-slate-50 transition-all disabled:opacity-50"
+			>
+				{testing ? 'Menguji...' : 'Tes koneksi'}
+			</button>
 			{#if msg}<p class="text-xs text-emerald-700">{msg}</p>{/if}
+			{#if testMsg}<p class="text-xs text-emerald-700">{testMsg}</p>{/if}
+			{#if testErr}<p class="text-xs text-rose-600">{testErr}</p>{/if}
 		</div>
 	</form>
 </section>
