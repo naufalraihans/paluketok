@@ -31,9 +31,16 @@ type Deps struct {
 	Payment   port.Payment
 	// Messages: percakapan perancangan per proyek (Fase 4).
 	Messages port.MessageRepo
+	// Sessions sesi chat per proyek (migrasi 0008). Satu proyek boleh banyak.
+	Sessions port.ChatSessionRepo
+	// Skills instruksi perancangan tersimpan (migrasi 0009), global.
+	Skills port.SkillRepo
 	// LLM dipakai chat konteks proyek. Worker punya jalur sendiri; usecase
 	// memakai port yang sama supaya slot `planner` tetap satu sumber.
-	LLM port.LLM
+	// Judge dipakai perintah /judge di chat. Membaca ai_settings per
+	// panggilan, jadi ganti key dari admin berlaku tanpa restart.
+	Judge port.Judge
+	LLM   port.LLM
 	// Signatures memverifikasi keaslian notifikasi (Midtrans: SHA512 atas
 	// order_id+status_code+gross_amount+ServerKey).
 	Signatures port.SignatureVerifier

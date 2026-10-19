@@ -105,7 +105,10 @@ func newServer(envFile string) (*server, error) {
 		// resolvedLLM membaca ulang ai_settings per panggilan, jadi ganti key
 		// dari admin berlaku tanpa restart.
 		Messages: repos.Messages,
+		Sessions: repos.Sessions,
+		Skills:   repos.Skills,
 		LLM:      resolvedLLM{client: llmClient, store: repos.AISettings},
+		Judge:    resolvedJudge{client: judgeClient, store: repos.AISettings},
 		// Semua field wajib Deps terisi (panic NewProjectUsecase kalau tidak):
 		Clock: clockReal{}, IDs: idsReal{},
 	}

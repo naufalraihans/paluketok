@@ -10,8 +10,12 @@
 	import Icon from '#lib/components/Icon.svelte';
 	import { mdToHtml } from '#lib/markdown';
 	import {
+		createChatSession,
+		deleteChatSession,
+		listChatSessions,
 		listProjectMessages,
 		sendProjectMessage,
+		type ChatSession,
 		type ProjectMessage
 	} from '#lib/api';
 
@@ -35,13 +39,38 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
-	// Riwayat dimuat ulang saat proyek berganti (mis. UUID -> slug di URL).
+	/**
+	 * Sesi percakapan. Satu proyek boleh punya banyak percakapan terpisah,
+	 * masing-masing dengan riwayatnya sendiri. `aktif` null = server yang
+	 * memilih (sesi terakhir, atau sesi baru bila proyek belum punya).
+	 */
+	let sesi = $state<ChatSession[]>([]);
+	let aktif = $state<string | null>(null);
+
+	// Muat daftar sesi saat proyek berganti (mis. UUID -> slug di URL).
 	$effect(() => {
 		const id = projectId;
 		if (!id) return;
+		error = null;
+		listChatSessions(id)
+			.then((res) => {
+				sesi = res.sessions ?? [];
+				// Sesi terbaru jadi pilihan awal; daftar sudah urut terbaru dulu.
+				if (!aktif && sesi.length > 0) aktif = sesi[0].id;
+			})
+			.catch((e: unknown) => {
+				error = e instanceof Error ? e.message : 'gagal memuat daftar sesi';
+			});
+	});
+
+	// Riwayat dimuat ulang saat proyek ATAU sesi aktif berganti.
+	$effect(() => {
+		const id = projectId;
+		const sid = aktif;
+		if (!id) return;
 		loading = true;
 		error = null;
-		listProjectMessages(id)
+		listProjectMessages(id, sid ?? undefined)
 			.then((res) => {
 				messages = res.messages ?? [];
 			})
@@ -54,6 +83,45 @@
 	});
 
 	const tooLong = $derived(draft.trim().length > 4000);
+	const sesiAktif = $derived(sesi.find((s) => s.id === aktif) ?? null);
+	const bisaHapus = $derived(sesi.length > 1);
+
+	/** Pindah sesi: riwayat lama dibuang dulu supaya tidak terlihat tercampur. */
+	function pilihSesi(id: string): void {
+		if (id === aktif || busy) return;
+		messages = [];
+		optimistis = [];
+		aktif = id;
+	}
+
+	async function sesiBaru(): Promise<void> {
+		if (busy || !projectId) return;
+		error = null;
+		try {
+			const s = await createChatSession(projectId);
+			sesi = [s, ...sesi];
+			messages = [];
+			optimistis = [];
+			aktif = s.id;
+		} catch (e: unknown) {
+			error = e instanceof Error ? e.message : 'gagal membuat sesi baru';
+		}
+	}
+
+	async function hapusSesi(id: string): Promise<void> {
+		if (busy || !bisaHapus) return;
+		error = null;
+		try {
+			await deleteChatSession(projectId, id);
+			sesi = sesi.filter((s) => s.id !== id);
+			if (aktif === id) {
+				messages = [];
+				aktif = sesi[0]?.id ?? null;
+			}
+		} catch (e: unknown) {
+			error = e instanceof Error ? e.message : 'gagal menghapus sesi';
+		}
+	}
 
 	async function kirim(teks?: string): Promise<void> {
 		const text = (teks ?? draft).trim();
@@ -74,11 +142,17 @@
 		};
 		optimistis = [sementara];
 		try {
-			const reply = await sendProjectMessage(projectId, text);
+			const reply = await sendProjectMessage(projectId, text, aktif ?? undefined);
 			// Muat ulang riwayat: pertanyaan + jawaban tersimpan di server, jadi
 			// tampilan selalu sama dengan isi DB (bukan salinan lokal).
-			const res = await listProjectMessages(projectId);
+			const res = await listProjectMessages(projectId, aktif ?? undefined);
 			messages = res.messages ?? [];
+			// Sesi pertama yang lahir dari pesan ini belum ada di daftar lokal.
+			if (!aktif) {
+				const daftar = await listChatSessions(projectId);
+				sesi = daftar.sessions ?? [];
+				if (sesi.length > 0) aktif = sesi[0].id;
+			}
 			if (reply.suggested_stage && onsuggest) onsuggest(reply.suggested_stage);
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : 'gagal mengirim pesan';
@@ -129,14 +203,66 @@
 		<div class="flex items-center gap-2 min-w-0">
 			<Icon name="sparkles" class="w-4 h-4 text-[#2563EB] shrink-0" />
 			<div class="min-w-0">
-				<h2 class="font-semibold text-xs text-[#0F172A] leading-tight">Tanya perancangan</h2>
-				<p class="text-[11px] text-[#64748B] leading-tight">Hanya soal rancangan proyek ini</p>
+				<h2 class="font-semibold text-xs text-[#0F172A] leading-tight">
+					{sesiAktif?.judul ?? 'Tanya perancangan'}
+				</h2>
+				<p class="text-[11px] text-[#64748B] leading-tight">
+					{sesi.length > 1 ? `${sesi.length} sesi percakapan` : 'Hanya soal rancangan proyek ini'}
+				</p>
 			</div>
 		</div>
-		{#if busy}
-			<span class="text-[11px] text-[#64748B] shrink-0">menyusun…</span>
-		{/if}
+		<div class="flex items-center gap-2 shrink-0">
+			{#if busy}
+				<span class="text-[11px] text-[#64748B]">menyusun…</span>
+			{/if}
+			<button
+				type="button"
+				onclick={() => void sesiBaru()}
+				disabled={busy}
+				title="Mulai percakapan baru"
+				class="inline-flex items-center gap-1 rounded-lg border border-[#E2E8F0] bg-white px-2 py-1 text-[11px] font-medium text-[#475569] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC] disabled:opacity-50 disabled:cursor-not-allowed"
+				data-purpose="session-new"
+			>
+				<Icon name="refresh" class="w-3 h-3" />
+				Sesi baru
+			</button>
+			{#if bisaHapus && aktif}
+				<button
+					type="button"
+					onclick={() => void hapusSesi(aktif ?? '')}
+					disabled={busy}
+					title="Hapus sesi ini"
+					class="rounded-lg border border-[#E2E8F0] bg-white px-2 py-1 text-[11px] font-medium text-[#B91C1C] transition-colors hover:border-[#FCA5A5] hover:bg-[#FEF2F2] disabled:opacity-50 disabled:cursor-not-allowed"
+					data-purpose="session-delete"
+				>
+					Hapus
+				</button>
+			{/if}
+		</div>
 	</header>
+
+	<!-- Daftar sesi: satu proyek boleh punya banyak percakapan terpisah. -->
+	{#if sesi.length > 1}
+		<div
+			class="flex gap-1.5 px-3 py-2 overflow-x-auto border-b border-[#E2E8F0] bg-white"
+			data-purpose="session-list"
+		>
+			{#each sesi as s (s.id)}
+				<button
+					type="button"
+					onclick={() => pilihSesi(s.id)}
+					disabled={busy}
+					class="shrink-0 max-w-[180px] truncate rounded-full border px-2.5 py-1 text-[11px] transition-colors disabled:cursor-not-allowed {s.id ===
+					aktif
+						? 'border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8] font-medium'
+						: 'border-[#E2E8F0] bg-white text-[#475569] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]'}"
+					data-purpose="session-tab"
+				>
+					{s.judul}
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	<div class="flex flex-col gap-3 px-4 py-3 max-h-[380px] overflow-y-auto" data-purpose="chat-thread">
 		{#if loading}

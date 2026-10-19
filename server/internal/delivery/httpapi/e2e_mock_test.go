@@ -109,17 +109,23 @@ func jevMock(t *testing.T) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			State     any            `json:"state"`
-			Questions map[string]any `json:"questions"`
+			Input     any `json:"input"`
+			Questions []struct {
+				ID string `json:"id"`
+			} `json:"questions"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		answers := map[string]any{}
-		for qid := range body.Questions {
-			answers[qid] = map[string]any{"choice": "EXECUTE", "confidence": 0.95,
-				"probabilities": map[string]float64{"EXECUTE": 0.95}}
+		// Bentuk kontrak sekarang: `questions` ARRAY berisi objek dengan `id`,
+		// dan `answers` array juga. Mock lama membaca questions sebagai map
+		// sehingga tidak menemukan pertanyaan dan mengembalikan answers kosong;
+		// itu membuat jalur judge tampak rusak padahal mock-nya yang usang.
+		answers := make([]any, 0, len(body.Questions))
+		for _, q := range body.Questions {
+			answers = append(answers, map[string]any{"name": q.ID, "choice": "gas", "confidence": 0.95,
+				"probabilities": []map[string]any{{"value": "gas", "probability": 0.95}}})
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"id": "jev-mock-1", "model": "systemone",
-			"state": body.State, "criteria": map[string]any{}, "answers": answers})
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "jev-mock-1", "model": "gpt-6-luna-decisions",
+			"answers": answers})
 	}))
 	t.Cleanup(srv.Close)
 	return srv

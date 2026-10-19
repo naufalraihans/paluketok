@@ -117,6 +117,9 @@ type e2eRepos struct {
 	orders    memOrders
 	ledger    memLedger
 	messages  memMessages
+	sessions  memSessions
+	skills    memSkills
+	judge     *judge.Client
 }
 
 func discardLog() *slog.Logger {
@@ -139,6 +142,7 @@ func newE2E(t *testing.T) *e2eEnv {
 		profiles: memProfiles{st}, projects: memProjects{st}, runs: memRuns{st},
 		artifacts: memArtifacts{st}, decisions: memDecisions{st},
 		orders: memOrders{st}, ledger: memLedger{st}, messages: memMessages{st},
+		sessions: memSessions{st}, skills: memSkills{st}, judge: jc,
 	}
 	clk := newMemClock()
 	ids := &memIDs{}
@@ -155,7 +159,8 @@ func newE2E(t *testing.T) *e2eEnv {
 		Ledger: repos.ledger, Verifier: payment, Notifications: payment,
 		Payment: payment, Signatures: payment,
 		// Chat konteks proyek: pakai LLM palsu yang sama dengan worker.
-		Messages: repos.messages, LLM: llmMock,
+		Messages: repos.messages, Sessions: repos.sessions, LLM: llmMock,
+		Judge: repos.judge, Skills: repos.skills,
 		Clock: clk, IDs: ids,
 	}
 

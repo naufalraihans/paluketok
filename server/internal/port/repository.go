@@ -132,7 +132,35 @@ type ArtifactRepo interface {
 type MessageRepo interface {
 	Create(ctx context.Context, m *entity.ProjectMessage) error
 	// ListByProject mengembalikan percakapan satu proyek, urut waktu.
+	//
+	// Dipertahankan untuk pemanggil lama. Chat baru memakai ListBySession:
+	// riwayat satu proyek bercampur antar sesi, dan itu sumber bug "kamu yakin?"
+	// yang menjawab dengan mengulang jawaban lama.
 	ListByProject(ctx context.Context, projectID entity.ID, limit int) ([]entity.ProjectMessage, error)
+	// ListBySession mengembalikan pesan satu sesi saja, urut lama -> baru.
+	ListBySession(ctx context.Context, sessionID entity.ID, limit int) ([]entity.ProjectMessage, error)
+}
+
+// ChatSessionRepo akses chat_sessions (satu proyek boleh banyak sesi).
+type ChatSessionRepo interface {
+	Create(ctx context.Context, s *entity.ChatSession) error
+	GetByID(ctx context.Context, id entity.ID) (*entity.ChatSession, error)
+	// ListByProject mengembalikan sesi satu proyek, terbaru dulu.
+	ListByProject(ctx context.Context, projectID entity.ID) ([]entity.ChatSession, error)
+	Delete(ctx context.Context, id entity.ID) error
+	// Touch memperbarui updated_at supaya urutan daftar sesi mengikuti
+	// percakapan terakhir, bukan urutan pembuatan.
+	Touch(ctx context.Context, id entity.ID, at time.Time) error
+}
+
+// SkillRepo akses `skills` (migrasi 0009). Daftar selalu urut nama supaya
+// tampilan dan pencarian teks konsisten.
+type SkillRepo interface {
+	Create(ctx context.Context, s *entity.Skill) error
+	List(ctx context.Context) ([]entity.Skill, error)
+	GetByName(ctx context.Context, nama string) (*entity.Skill, error)
+	Update(ctx context.Context, s *entity.Skill) error
+	Delete(ctx context.Context, id entity.ID) error
 }
 
 // DecisionRepo mencatat jejak keputusan JEV (docs/plan/planner.md bagian 4).

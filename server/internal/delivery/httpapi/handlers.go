@@ -486,6 +486,9 @@ func messageDTO(m *entity.ProjectMessage) map[string]any {
 
 // SendMessage (POST /v1/projects/{id}/messages). Chat GRATIS: tidak ada
 // potongan kredit dan tidak ada baris credits_ledger.
+//
+// `session_id` opsional: kosong = sesi terakhir proyek, dan bila proyek belum
+// punya sesi, satu sesi baru dibuat dari pesan pertama.
 func (h *Handlers) SendMessage(w http.ResponseWriter, r *http.Request) {
 	if h.Chat == nil {
 		writeErr(w, r, usecase.ErrUnavailable)
@@ -496,12 +499,13 @@ func (h *Handlers) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Content string `json:"content"`
+		Content   string `json:"content"`
+		SessionID string `json:"session_id"`
 	}
 	if !decodeJSON(w, r, &body) {
 		return
 	}
-	m, err := h.Chat.SendMessage(r.Context(), actorFrom(r), ref, body.Content)
+	m, err := h.Chat.SendMessageInSession(r.Context(), actorFrom(r), ref, body.SessionID, body.Content)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -514,6 +518,9 @@ func (h *Handlers) SendMessage(w http.ResponseWriter, r *http.Request) {
 // limit=/offset= dipakai untuk MENELUSURI riwayat (default 20, cap 100),
 // sedangkan konteks yang dikirim ke model tetap 20 pesan terakhir
 // (usecase.ChatMaxHistory) — dua angka itu memang berbeda urusannya.
+//
+// `?session_id=` memfilter ke satu sesi. Tanpa itu seluruh proyek dibaca, dan
+// itu mempertahankan perilaku pemanggil lama.
 func (h *Handlers) ListMessages(w http.ResponseWriter, r *http.Request) {
 	if h.Chat == nil {
 		writeErr(w, r, usecase.ErrUnavailable)
@@ -523,7 +530,15 @@ func (h *Handlers) ListMessages(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ms, err := h.Chat.ListMessages(r.Context(), actorFrom(r), ref, pageFrom(r))
+	var (
+		ms  []entity.ProjectMessage
+		err error
+	)
+	if sid := r.URL.Query().Get("session_id"); sid != "" {
+		ms, err = h.Chat.MessagesInSession(r.Context(), actorFrom(r), ref, sid, pageFrom(r))
+	} else {
+		ms, err = h.Chat.ListMessages(r.Context(), actorFrom(r), ref, pageFrom(r))
+	}
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -533,6 +548,112 @@ func (h *Handlers) ListMessages(w http.ResponseWriter, r *http.Request) {
 		out = append(out, messageDTO(&ms[i]))
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"messages": out})
+}
+
+// ListChatSessions (GET /v1/projects/{id}/sessions): daftar sesi proyek.
+func (h *Handlers) ListChatSessions(w http.ResponseWriter, r *http.Request) {
+	if h.Chat == nil {
+		writeErr(w, r, usecase.ErrUnavailable)
+		return
+	}
+	ref, ok := pathRef(w, r, "id")
+	if !ok {
+		return
+	}
+	list, err := h.Chat.Sessions(r.Context(), actorFrom(r), ref)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for i := range list {
+		out = append(out, sessionDTO(&list[i]))
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"sessions": out})
+}
+
+// CreateChatSession (POST /v1/projects/{id}/sessions): buat sesi baru.
+func (h *Handlers) CreateChatSession(w http.ResponseWriter, r *http.Request) {
+	if h.Chat == nil {
+		writeErr(w, r, usecase.ErrUnavailable)
+		return
+	}
+	ref, ok := pathRef(w, r, "id")
+	if !ok {
+		return
+	}
+	var body struct {
+		Judul string `json:"judul"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	s, err := h.Chat.NewSession(r.Context(), actorFrom(r), ref, body.Judul)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, http.StatusCreated, sessionDTO(s))
+}
+
+// DeleteChatSession (DELETE /v1/projects/{id}/sessions/{sid}).
+//
+// Sesi terakhir tidak bisa dihapus: proyek tanpa sesi membuat layar chat
+// kosong tanpa jalan kembali.
+func (h *Handlers) DeleteChatSession(w http.ResponseWriter, r *http.Request) {
+	if h.Chat == nil {
+		writeErr(w, r, usecase.ErrUnavailable)
+		return
+	}
+	ref, ok := pathRef(w, r, "id")
+	if !ok {
+		return
+	}
+	sid, ok := pathRef(w, r, "sid")
+	if !ok {
+		return
+	}
+	if err := h.Chat.DeleteSession(r.Context(), actorFrom(r), ref, sid); err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// sessionDTO bentuk satu sesi di API.
+func sessionDTO(s *entity.ChatSession) map[string]any {
+	return map[string]any{
+		"id":         s.ID,
+		"project_id": s.ProjectID,
+		"judul":      s.Judul,
+		"created_at": s.CreatedAt,
+		"updated_at": s.UpdatedAt,
+	}
+}
+
+// skillDTO bentuk satu skill di API.
+//
+// Wajib lewat DTO, bukan entity langsung: entity memakai nama medan Go
+// (`Nama`, `Isi`) sehingga JSON-nya jadi huruf besar dan klien membaca
+// `undefined`. Semua endpoint lain di paket ini memakai pola yang sama.
+func skillDTO(s *entity.Skill) map[string]any {
+	return map[string]any{
+		"id":         s.ID,
+		"nama":       s.Nama,
+		"ringkasan":  s.Ringkasan,
+		"isi":        s.Isi,
+		"created_at": s.CreatedAt,
+		"updated_at": s.UpdatedAt,
+	}
+}
+
+// skillDTOList bentuk daftar skill.
+func skillDTOList(list []entity.Skill) []map[string]any {
+	out := make([]map[string]any, 0, len(list))
+	for i := range list {
+		out = append(out, skillDTO(&list[i]))
+	}
+	return out
 }
 
 var stages = []entity.Stage{entity.StagePRD, entity.StageERD, entity.StageOpenAPI,

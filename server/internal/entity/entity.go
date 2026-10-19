@@ -375,6 +375,9 @@ type ProjectMessage struct {
 	ID        ID
 	ProjectID ID
 	UserID    ID
+	// SessionID sesi percakapan pemilik pesan ini. Kosong hanya untuk baris
+	// lama yang belum sempat dibackfill; aplikasi selalu mengisinya.
+	SessionID ID
 	Role      string
 	Content   string
 	// SuggestedStage usul tahap berikutnya dari model; kosong bila tidak ada.
@@ -383,6 +386,34 @@ type ProjectMessage struct {
 	TokensIn       int
 	TokensOut      int
 	CreatedAt      time.Time
+}
+
+// ChatSession satu percakapan perancangan di dalam proyek.
+//
+// Satu proyek boleh punya banyak sesi: "kasir warung", "modul laporan", dan
+// seterusnya. Riwayat yang dikirim ke model hanya milik sesi ini, bukan
+// seluruh proyek, supaya topik lama tidak terbawa ke pertanyaan baru.
+type ChatSession struct {
+	ID        ID
+	ProjectID ID
+	UserID    ID
+	Judul     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// Skill instruksi perancangan tersimpan (migrasi 0009).
+//
+// Isi adalah markdown bebas. Cakupannya GLOBAL: skill alat kerja bersama, bukan
+// catatan pribadi, jadi CreatedBy merekam penulisnya tanpa membatasi pemakai.
+type Skill struct {
+	ID        ID
+	Nama      string
+	Ringkasan string
+	Isi       string
+	CreatedBy *ID
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // ArtifactVersion adalah baris artifact_versions (erd.dbml). created_by_run_id

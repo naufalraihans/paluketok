@@ -205,6 +205,34 @@ export const listProjectArtifacts = (projectId: string) =>
 // --- chat konteks proyek (perancangan saja, gratis) ---
 
 /** Satu pesan percakapan. `suggested_stage` hanya ada di balasan model. */
+export type Skill = {
+	id: string;
+	nama: string;
+	ringkasan: string;
+	isi: string;
+	created_at: string;
+	updated_at: string;
+};
+
+/** Skill perancangan: global, hanya admin yang menulis (migrasi 0009). */
+export const listSkills = () => get<{ skills: Skill[] }>('/v1/admin/skills');
+
+export const createSkill = (data: { nama: string; ringkasan: string; isi: string }) =>
+	post<Skill>('/v1/admin/skills', data);
+
+export const updateSkill = (id: string, data: { ringkasan: string; isi: string }) =>
+	put<Skill>(`/v1/admin/skills/${id}`, data);
+
+export const deleteSkill = (id: string) => del<void>(`/v1/admin/skills/${id}`);
+
+export type ChatSession = {
+	id: string;
+	project_id: string;
+	judul: string;
+	created_at: string;
+	updated_at: string;
+};
+
 export type ProjectMessage = {
 	id: string;
 	project_id: string;
@@ -216,11 +244,26 @@ export type ProjectMessage = {
 	created_at: string;
 };
 
-export const sendProjectMessage = (projectId: string, content: string) =>
-	post<ProjectMessage>(`/v1/projects/${projectId}/messages`, { content });
+export const sendProjectMessage = (projectId: string, content: string, sessionId?: string) =>
+	post<ProjectMessage>(`/v1/projects/${projectId}/messages`, {
+		content,
+		...(sessionId ? { session_id: sessionId } : {})
+	});
 
-export const listProjectMessages = (projectId: string) =>
-	get<{ messages: ProjectMessage[] }>(`/v1/projects/${projectId}/messages`);
+export const listProjectMessages = (projectId: string, sessionId?: string) =>
+	get<{ messages: ProjectMessage[] }>(
+		`/v1/projects/${projectId}/messages${sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''}`
+	);
+
+/** Sesi chat per proyek: satu proyek boleh punya banyak percakapan. */
+export const listChatSessions = (projectId: string) =>
+	get<{ sessions: ChatSession[] }>(`/v1/projects/${projectId}/sessions`);
+
+export const createChatSession = (projectId: string, judul = '') =>
+	post<ChatSession>(`/v1/projects/${projectId}/sessions`, { judul });
+
+export const deleteChatSession = (projectId: string, sessionId: string) =>
+	del<void>(`/v1/projects/${projectId}/sessions/${sessionId}`);
 export const getArtifact = (id: string) => get<Artifact>(`/v1/artifacts/${id}`);
 export const regenerateArtifact = (id: string) => post<Artifact>(`/v1/artifacts/${id}/regenerate`);
 

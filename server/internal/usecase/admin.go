@@ -26,11 +26,16 @@ type AdminUsecase struct {
 	profiles  port.ProfileRepo
 	ledger    port.LedgerRepo
 	settings  AdminSettingsRepo
+	// skills instruksi perancangan tersimpan (migrasi 0009).
+	skills port.SkillRepo
+	clock  port.Clock
+	ids    IDGenerator
 }
 
 func NewAdminUsecase(d Deps, settings AdminSettingsRepo) *AdminUsecase {
 	return &AdminUsecase{projects: d.Projects, runs: d.Runs, decisions: d.Decisions,
-		profiles: d.Profiles, ledger: d.Ledger, settings: settings}
+		profiles: d.Profiles, ledger: d.Ledger, settings: settings,
+		skills: d.Skills, clock: d.Clock, ids: d.IDs}
 }
 
 func adminOnly(actor entity.Actor) error {

@@ -60,6 +60,10 @@ func NewRouter(o RouterOptions) http.Handler {
 	// menangkap POST .../runs, jadi tidak perlu rate limit tambahan di sini.
 	authed.HandleFunc("POST /v1/projects/{id}/messages", o.Handlers.SendMessage)
 	authed.HandleFunc("GET /v1/projects/{id}/messages", o.Handlers.ListMessages)
+	// Sesi chat (migrasi 0008): satu proyek boleh banyak percakapan.
+	authed.HandleFunc("GET /v1/projects/{id}/sessions", o.Handlers.ListChatSessions)
+	authed.HandleFunc("POST /v1/projects/{id}/sessions", o.Handlers.CreateChatSession)
+	authed.HandleFunc("DELETE /v1/projects/{id}/sessions/{sid}", o.Handlers.DeleteChatSession)
 	authed.HandleFunc("PATCH /v1/projects/{id}", o.Handlers.UpdateProject)
 	authed.HandleFunc("DELETE /v1/projects/{id}", o.Handlers.ArchiveProject)
 	authed.HandleFunc("POST /v1/projects/{id}/runs", o.Handlers.CreateRun)
@@ -84,6 +88,12 @@ func NewRouter(o RouterOptions) http.Handler {
 	admin.HandleFunc("GET /v1/admin/settings/ai", o.Handlers.AdminListAISettings)
 	admin.HandleFunc("PUT /v1/admin/settings/ai/{slot}", o.Handlers.AdminSetAISetting)
 	admin.HandleFunc("POST /v1/admin/settings/ai/test", o.Handlers.AdminTestAISetting)
+	// Skill perancangan (migrasi 0009). Global: semua boleh membaca, admin
+	// menulis. Isi markdown dari panel admin.
+	admin.HandleFunc("GET /v1/admin/skills", o.Handlers.AdminListSkills)
+	admin.HandleFunc("POST /v1/admin/skills", o.Handlers.AdminCreateSkill)
+	admin.HandleFunc("PUT /v1/admin/skills/{id}", o.Handlers.AdminUpdateSkill)
+	admin.HandleFunc("DELETE /v1/admin/skills/{id}", o.Handlers.AdminDeleteSkill)
 
 	// Rate limit (security.md bagian 8): key per user dari Actor (fallback IP).
 	// POST /runs 5/menit (jatah sendiri, keep), endpoint user lain 60/menit.

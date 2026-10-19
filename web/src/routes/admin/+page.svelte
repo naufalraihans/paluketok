@@ -7,16 +7,18 @@
 	import AdminRuns from '#lib/components/admin/AdminRuns.svelte';
 	import AdminUsers from '#lib/components/admin/AdminUsers.svelte';
 	import AdminDecisions from '#lib/components/admin/AdminDecisions.svelte';
+	import AdminSkills from '#lib/components/admin/AdminSkills.svelte';
 	import AdminAI from '#lib/components/admin/AdminAI.svelte';
 
 	// Konsol admin. Layout & komponen sidebar/topbar sama persis dengan /projects
 	// (satu desain), isi & menu berbeda: 5 tab operasional, bukan proyek user.
-	type Tab = 'projects' | 'runs' | 'users' | 'decisions' | 'ai';
+	type Tab = 'projects' | 'runs' | 'users' | 'decisions' | 'skills' | 'ai';
 	const TABS: { id: Tab; label: string }[] = [
 		{ id: 'projects', label: 'Projects' },
 		{ id: 'runs', label: 'Runs' },
 		{ id: 'users', label: 'Users' },
 		{ id: 'decisions', label: 'Keputusan' },
+		{ id: 'skills', label: 'Skill' },
 		{ id: 'ai', label: 'AI Settings' }
 	];
 	let tab = $state<Tab>('projects');
@@ -47,7 +49,7 @@
 		sectionLabel: 'Menu Admin',
 		items: TABS.map((t, i) => ({
 			label: t.label,
-			icon: ['folder', 'refresh', 'users', 'bolt', 'sliders'][i],
+			icon: ['folder', 'refresh', 'users', 'bolt', 'puzzle', 'sliders'][i],
 			href: '#',
 			active: tab === t.id
 		})),
@@ -100,7 +102,7 @@
 					{/each}
 				</nav>
 
-				{#if tab === 'projects'}<AdminProjects />{:else if tab === 'runs'}<AdminRuns />{:else if tab === 'users'}<AdminUsers />{:else if tab === 'decisions'}<AdminDecisions />{:else}<AdminAI />{/if}
+				{#if tab === 'projects'}<AdminProjects />{:else if tab === 'runs'}<AdminRuns />{:else if tab === 'users'}<AdminUsers />{:else if tab === 'decisions'}<AdminDecisions />{:else if tab === 'skills'}<AdminSkills />{:else}<AdminAI />{/if}
 			{/if}
 		</main>
 	</div>
