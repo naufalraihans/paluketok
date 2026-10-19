@@ -165,8 +165,15 @@ func ProposePlanStages(ctx context.Context, judge stageJudger, brief string, sta
 	}
 
 	candidates := buildStageCandidates()
+	choices := make([]port.JudgeChoice, 0, len(candidates))
+	for _, c := range candidates {
+		m, _ := c.(map[string]any)
+		id, _ := m["id"].(string)
+		alasan, _ := m["alasan"].(string)
+		choices = append(choices, port.JudgeChoice{Value: id, Description: alasan})
+	}
 	req := port.JudgeRequest{
-		State: map[string]any{
+		Input: map[string]any{
 			"tugas": "Pilih susunan tahap perancangan yang paling pas untuk proyek ini.",
 			"brief": brief,
 			"stack": stack,
@@ -177,13 +184,14 @@ func ProposePlanStages(ctx context.Context, judge stageJudger, brief string, sta
 				"jangan usulkan pdf, docx, gambar, atau format lain",
 				"depends_on hanya boleh menunjuk key yang ada di susunan itu",
 			},
+			"options": candidates,
 		},
 		Questions: []port.JudgeQuestion{{
 			ID:   "q1",
 			Type: "choice",
-			Instructions: "Pilih satu susunan tahap dari options. Balas dengan field id pilihannya (" +
-				stageKeepOption + ", ringkas, atau rinci) di jawaban choice.",
-			Criteria: map[string]any{"options": candidates},
+			Instructions: "Pilih satu susunan tahap dari options. Balas value pilihannya (" +
+				stageKeepOption + ", ringkas, atau rinci).",
+			Choices: choices,
 		}},
 	}
 

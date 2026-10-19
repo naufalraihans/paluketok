@@ -80,16 +80,20 @@ func (p *Pipeline) runGate(ctx context.Context, run *entity.PlanRun, stage entit
 	return res, nil
 }
 
-// buildJudgeRequest menyiapkan request JEV: state ringkas, satu pertanyaan.
+// buildJudgeRequest menyiapkan request penilai: input ringkas, satu pertanyaan.
+// Options jadi field choices (bukan criteria: API menolak bentuk itu).
 func buildJudgeRequest(q GateQuestion, evidence map[string]any) port.JudgeRequest {
-	criteria := map[string]any{"options": q.Options}
+	choices := make([]port.JudgeChoice, 0, len(q.Options))
+	for _, o := range q.Options {
+		choices = append(choices, port.JudgeChoice{Value: o, Description: o})
+	}
 	return port.JudgeRequest{
-		State: evidence,
+		Input: evidence,
 		Questions: []port.JudgeQuestion{{
 			ID:           "q1",
 			Type:         "choice",
 			Instructions: q.Question,
-			Criteria:     criteria,
+			Choices:      choices,
 		}},
 	}
 }

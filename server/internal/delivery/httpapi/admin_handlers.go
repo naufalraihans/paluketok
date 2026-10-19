@@ -5,6 +5,7 @@ package httpapi
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"paluketok/server/internal/entity"
 	"paluketok/server/internal/port"
@@ -186,7 +187,7 @@ func (h *Handlers) AdminTestAISetting(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, err)
 		return
 	}
-	msg := "Koneksi berhasil. Model menjawab."
+	msg := "Koneksi berhasil. Model menjawab dalam " + latency.Round(time.Millisecond).String() + "."
 	if !ok {
 		msg = "Server terjangkau, tapi model tidak menjawab seperti yang diharapkan."
 	}

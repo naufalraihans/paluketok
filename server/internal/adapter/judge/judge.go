@@ -57,24 +57,54 @@ func New(baseURL, apiKey string) *Client {
 	return &Client{BaseURL: baseURL, APIKey: apiKey, http: &http.Client{Timeout: Timeout}}
 }
 
-// Decide satu panggilan gate. State/questions lewat any: bentuk bebas
-// (objek/text/array) sesuai gateway JEV.
-func (c *Client) Decide(ctx context.Context, req port.JudgeRequest) (*port.JudgeResponse, error) {
-	questions := map[string]any{}
-	for _, q := range req.Questions {
-		questions[q.ID] = map[string]any{
-			"type":         q.Type,
-			"instructions": q.Instructions,
-			"criteria":     q.Criteria,
+// questionChoices merangkum pilihan tiap pertanyaan untuk kolom decisions.criteria.
+func questionChoices(qs []port.JudgeQuestion) any {
+	out := map[string]any{}
+	for _, q := range qs {
+		vals := make([]string, 0, len(q.Choices))
+		for _, ch := range q.Choices {
+			vals = append(vals, ch.Value)
 		}
+		out[q.ID] = map[string]any{"options": vals}
+	}
+	return out
+}
+
+// Decide satu panggilan gate. Bentuk body persis OpenAI Decisions API:
+// POST {BaseURL} dengan {"model","input","questions":[{type,name,instructions,choices}]}.
+// State/questions lewat any: bentuk bebas (objek/text/array).
+func (c *Client) Decide(ctx context.Context, req port.JudgeRequest) (*port.JudgeResponse, error) {
+	questions := make([]map[string]any, 0, len(req.Questions))
+	for _, q := range req.Questions {
+		choices := make([]map[string]any, 0, len(q.Choices))
+		for _, ch := range q.Choices {
+			choices = append(choices, map[string]any{
+				"value":       ch.Value,
+				"description": ch.Description,
+			})
+		}
+		questions = append(questions, map[string]any{
+			"type":         q.Type,
+			"name":         q.ID,
+			"instructions": q.Instructions,
+			"choices":      choices,
+		})
 	}
 	model := c.Model
 	if model == "" {
 		model = DefaultModel
 	}
+	// "input" menerima objek: dikirim sebagai string JSON supaya server tidak
+	// menolak tipe. Bentuk objek dipertahankan karena penilai butuh struktur.
+	input := req.Input
+	if input != nil {
+		if b, err := json.Marshal(input); err == nil {
+			input = string(b)
+		}
+	}
 	body := map[string]any{
 		"model":     model,
-		"state":     req.State,
+		"input":     input,
 		"questions": questions,
 	}
 	raw, err := json.Marshal(body)
@@ -99,15 +129,20 @@ func (c *Client) Decide(ctx context.Context, req port.JudgeRequest) (*port.Judge
 	if resp.StatusCode >= 300 {
 		return nil, &errJudge{Status: resp.StatusCode, Body: string(respRaw)}
 	}
+	// Bentuk jawaban OpenAI Decisions API: answers adalah ARRAY, tiap entri
+	// punya field "name" (bukan map berkunci nama).
 	var dr struct {
-		ID       string `json:"id"`
-		Model    string `json:"model"`
-		State    any    `json:"state"`
-		Criteria any    `json:"criteria"`
-		Answers  map[string]struct {
-			Choice        string             `json:"choice"`
-			Confidence    float64            `json:"confidence"`
-			Probabilities map[string]float64 `json:"probabilities"`
+		ID      string `json:"id"`
+		Model   string `json:"model"`
+		Answers []struct {
+			Type          string  `json:"type"`
+			Name          string  `json:"name"`
+			Choice        string  `json:"choice"`
+			Confidence    float64 `json:"confidence"`
+			Probabilities []struct {
+				Value       string  `json:"value"`
+				Probability float64 `json:"probability"`
+			} `json:"probabilities"`
 		} `json:"answers"`
 	}
 	if err := json.Unmarshal(respRaw, &dr); err != nil {
@@ -117,13 +152,19 @@ func (c *Client) Decide(ctx context.Context, req port.JudgeRequest) (*port.Judge
 		DecisionID: dr.ID,
 		Model:      dr.Model,
 		Answers:    map[string]port.JudgeAnswer{},
-		State:      dr.State,
-		Criteria:   dr.Criteria,
+		// API tidak mengembalikan input/state, jadi diteruskan apa adanya dari
+		// permintaan supaya worker tetap bisa mencatat keputusan.
+		State:    req.Input,
+		Criteria: questionChoices(req.Questions),
 	}
-	for id, a := range dr.Answers {
-		out.Answers[id] = port.JudgeAnswer{
-			QuestionID: id, Choice: a.Choice,
-			Confidence: a.Confidence, Probabilities: a.Probabilities,
+	for _, a := range dr.Answers {
+		probs := map[string]float64{}
+		for _, p := range a.Probabilities {
+			probs[p.Value] = p.Probability
+		}
+		out.Answers[a.Name] = port.JudgeAnswer{
+			QuestionID: a.Name, Choice: a.Choice,
+			Confidence: a.Confidence, Probabilities: probs,
 		}
 	}
 	return out, nil

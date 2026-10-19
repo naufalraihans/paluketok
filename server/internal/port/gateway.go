@@ -40,18 +40,28 @@ type LLM interface {
 	Complete(ctx context.Context, req LLMRequest) (*LLMResponse, error)
 }
 
-// JudgeQuestion adalah satu pertanyaan untuk JEV (docs/plan/jev_ai.md).
+// JudgeQuestion adalah satu pertanyaan untuk gateway penilai.
+//
+// Bentuknya mengikuti OpenAI Decisions API apa adanya:
+// {"type","name","instructions","choices"} di dalam array "questions".
+// Bukan map bernama "criteria": server menolak bentuk itu.
 type JudgeQuestion struct {
 	ID           string
 	Type         string // "choice" | "noul" | "score"
 	Instructions string
-	Criteria     any
+	Choices      []JudgeChoice
 }
 
-// JudgeRequest adalah satu panggilan gate JEV. State ringkas, bukan repository
+// JudgeChoice satu pilihan jawaban. Value yang dibaca kembali di Answers.
+type JudgeChoice struct {
+	Value       string
+	Description string
+}
+
+// JudgeRequest adalah satu panggilan gate. Input ringkas, bukan repository
 // penuh (docs/plan/planner.md bagian 4).
 type JudgeRequest struct {
-	State     any
+	Input     any
 	Questions []JudgeQuestion
 }
 
@@ -69,8 +79,10 @@ type JudgeResponse struct {
 	DecisionID string
 	Model      string
 	Answers    map[string]JudgeAnswer
-	State      any
-	Criteria   any
+	// State diisi ULANG dari input yang dikirim, karena OpenAI Decisions API
+	// tidak mengembalikannya. Dipakai worker untuk mencatat keputusan.
+	State    any
+	Criteria any
 }
 
 // Judge adalah client gateway JEV. Timeout 30 detik, tanpa auto-retry

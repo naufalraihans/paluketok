@@ -38,11 +38,11 @@ func TestProposePlanStages_PilihKandidat(t *testing.T) {
 	if len(got) != 4 {
 		t.Fatalf("kandidat ringkas harus 4 tahap, dapat %d", len(got))
 	}
-	// Kriteria yang dikirim ke judge harus membawa brief + stack: judge yang
+	// Input yang dikirim ke judge harus membawa brief + stack: judge yang
 	// memutuskan, jadi ia butuh konteksnya.
-	raw, ok := j.got.State.(map[string]any)
+	raw, ok := j.got.Input.(map[string]any)
 	if !ok {
-		t.Fatalf("state bukan map: %T", j.got.State)
+		t.Fatalf("input bukan map: %T", j.got.Input)
 	}
 	if raw["brief"] != "kasir warung" {
 		t.Fatalf("brief tidak diteruskan ke judge: %v", raw["brief"])
